@@ -104,6 +104,7 @@ function createMockRunService() {
     ),
     getByStrategyId: vi.fn().mockReturnValue([mockRun]),
     getLatestByStrategy: vi.fn().mockReturnValue(mockRun),
+    getAll: vi.fn().mockReturnValue([mockRun]),
     updateState: vi.fn().mockReturnValue(mockRun),
     markFailed: vi.fn(),
   };
@@ -350,9 +351,79 @@ describe('Strategy Routes', () => {
   });
 });
 
+// ─── Strategy Enable/Disable ───────────────────────────────────
+
+describe('Strategy enable/disable', () => {
+  it('POST /strategies/:id/enable returns 200 and updated strategy', async () => {
+    const { app, deps } = await createApp();
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/strategies/strat-0001/enable',
+      headers: AUTH_HEADER,
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().status).toBe('ACTIVE');
+    expect(deps.strategyService.update).toHaveBeenCalledWith('strat-0001', { status: 'ACTIVE' });
+    await app.close();
+  });
+
+  it('POST /strategies/:id/disable returns 200 and paused strategy', async () => {
+    const { app, deps } = await createApp();
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/strategies/strat-0001/disable',
+      headers: AUTH_HEADER,
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().status).toBe('PAUSED');
+    expect(deps.strategyService.update).toHaveBeenCalledWith('strat-0001', { status: 'PAUSED' });
+    await app.close();
+  });
+
+  it('POST /strategies/non-existent/enable returns 404', async () => {
+    const { app } = await createApp();
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/strategies/non-existent/enable',
+      headers: AUTH_HEADER,
+    });
+    expect(res.statusCode).toBe(404);
+    expect(res.json().error).toBe('Strategy not found');
+    await app.close();
+  });
+});
+
 // ─── Run Routes ─────────────────────────────────────────────────
 
 describe('Run Routes', () => {
+  it('GET /runs returns all runs', async () => {
+    const { app, deps } = await createApp();
+    const res = await app.inject({
+      method: 'GET',
+      url: '/api/runs',
+      headers: AUTH_HEADER,
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toHaveLength(1);
+    expect(res.json()[0].runId).toBe('run-0001');
+    expect(deps.runService.getAll).toHaveBeenCalledOnce();
+    await app.close();
+  });
+
+  it('GET /runs?strategyId=strat-0001 returns filtered runs', async () => {
+    const { app, deps } = await createApp();
+    const res = await app.inject({
+      method: 'GET',
+      url: '/api/runs?strategyId=strat-0001',
+      headers: AUTH_HEADER,
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toHaveLength(1);
+    expect(deps.runService.getByStrategyId).toHaveBeenCalledWith('strat-0001');
+    expect(deps.runService.getAll).not.toHaveBeenCalled();
+    await app.close();
+  });
+
   it('POST /runs triggers a new run', async () => {
     const { app, deps } = await createApp();
     const res = await app.inject({

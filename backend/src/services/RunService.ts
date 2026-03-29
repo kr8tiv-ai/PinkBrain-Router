@@ -105,6 +105,14 @@ export class RunService {
     return row ? this.toRun(row) : null;
   }
 
+  getAll(): CreditRun[] {
+    const rows = this.db
+      .prepare('SELECT * FROM runs ORDER BY started_at DESC')
+      .all<RawRunRow>();
+
+    return rows.map((row) => this.toRun(row));
+  }
+
   updateState(runId: string, newState: RunState, data: CreateRunData = {}): CreditRun | null {
     const existing = this.getById(runId);
     if (!existing) return null;

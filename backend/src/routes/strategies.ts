@@ -125,6 +125,30 @@ export async function strategyRoutes(
     },
   });
 
+  // POST /strategies/:id/enable — activate a strategy
+  app.post('/strategies/:id/enable', {
+    handler: async (request, reply) => {
+      const { id } = request.params as { id: string };
+      const strategy = deps.strategyService.update(id, { status: 'ACTIVE' });
+      if (!strategy) {
+        return reply.code(404).send({ error: 'Strategy not found', statusCode: 404 });
+      }
+      return stripKeySecret(strategy);
+    },
+  });
+
+  // POST /strategies/:id/disable — pause a strategy
+  app.post('/strategies/:id/disable', {
+    handler: async (request, reply) => {
+      const { id } = request.params as { id: string };
+      const strategy = deps.strategyService.update(id, { status: 'PAUSED' });
+      if (!strategy) {
+        return reply.code(404).send({ error: 'Strategy not found', statusCode: 404 });
+      }
+      return stripKeySecret(strategy);
+    },
+  });
+
   // DELETE /strategies/:id — delete a strategy
   app.delete('/strategies/:id', {
     handler: async (request, reply) => {

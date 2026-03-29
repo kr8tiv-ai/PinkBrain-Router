@@ -11,6 +11,19 @@ export async function runRoutes(
   app: FastifyInstance,
   deps: RunRouteDeps,
 ): Promise<void> {
+  // GET /runs — list all runs (optionally filter by strategyId query param)
+  app.get('/runs', {
+    handler: async (request) => {
+      const query = request.query as { strategyId?: string };
+      if (query.strategyId) {
+        const runs = deps.runService.getByStrategyId(query.strategyId);
+        return runs.map(stripRun);
+      }
+      const runs = deps.runService.getAll();
+      return runs.map(stripRun);
+    },
+  });
+
   // POST /runs — trigger a new run for a strategy
   app.post('/runs', {
     schema: {
