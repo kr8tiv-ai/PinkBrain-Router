@@ -3,6 +3,8 @@ import type { RunState, PhaseResult, CreditRun } from '../types/index.js';
 import { AuditService } from '../services/AuditService.js';
 import { RunService } from '../services/RunService.js';
 import { ExecutionPolicy } from './ExecutionPolicy.js';
+import { withRetry } from './withRetry.js';
+import { isTransientError } from './isTransientError.js';
 
 const logger = pino({ name: 'StateMachine' });
 
@@ -168,7 +170,15 @@ export class StateMachine {
           `Executing phase: ${phase}`,
         );
 
-        const result = await handler(currentRun);
+        const result = await withRetry(
+          () => handler(currentRun),
+          {
+            shouldRetry: (error) => isTransientError(error),
+            maxRetries: 3,
+            baseDelayMs: 1000,
+            maxDelayMs: 30000,
+          },
+        );
 
         if (result.success) {
           const nextPhase = nextPhaseMap[phase];

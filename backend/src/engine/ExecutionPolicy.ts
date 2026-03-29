@@ -1,5 +1,6 @@
 import pino from 'pino';
 import type { Config } from '../config/index.js';
+import type { DatabaseConnection } from '../services/Database.js';
 
 const logger = pino({ name: 'ExecutionPolicy' });
 
@@ -18,8 +19,14 @@ export interface PolicyState {
 export class ExecutionPolicy {
   private dailyRunCounts: Map<string, number> = new Map();
   private lastRunDate: string | null = null;
+  private readonly db?: DatabaseConnection;
 
-  constructor(private readonly config: Config) {}
+  constructor(private readonly config: Config, db?: DatabaseConnection) {
+    this.db = db;
+    if (this.db) {
+      this.hydrateDailyCounts();
+    }
+  }
 
   isDryRun(): boolean {
     return this.config.dryRun;
@@ -59,8 +66,25 @@ export class ExecutionPolicy {
   recordRunStart(strategyId: string): void {
     this.resetDailyCountsIfNeeded();
     const count = this.dailyRunCounts.get(strategyId) ?? 0;
-    this.dailyRunCounts.set(strategyId, count + 1);
-    logger.debug({ strategyId, count: count + 1 }, 'Run start recorded');
+    const newCount = count + 1;
+    this.dailyRunCounts.set(strategyId, newCount);
+    logger.debug({ strategyId, count: newCount }, 'Run start recorded');
+
+    if (this.db) {
+      try {
+        const today = new Date().toISOString().slice(0, 10);
+        this.db
+          .prepare(
+            'INSERT INTO daily_run_counts (strategy_id, date, count) VALUES (?, ?, ?) ON CONFLICT(strategy_id, date) DO UPDATE SET count = excluded.count',
+          )
+          .run(strategyId, today, newCount);
+      } catch (err) {
+        logger.error(
+          { err: err instanceof Error ? err.message : String(err), strategyId },
+          'Failed to persist daily run count to DB — in-memory count still valid',
+        );
+      }
+    }
   }
 
   /**
@@ -180,6 +204,34 @@ export class ExecutionPolicy {
       this.dailyRunCounts.clear();
       this.lastRunDate = today;
       logger.debug({ date: today }, 'Daily run counters reset');
+
+      if (this.db) {
+        this.hydrateDailyCounts();
+      }
+    }
+  }
+
+  private hydrateDailyCounts(): void {
+    try {
+      const today = new Date().toISOString().slice(0, 10);
+      const rows = this.db!
+        .prepare('SELECT strategy_id, count FROM daily_run_counts WHERE date = ?')
+        .all(today) as Array<{ strategy_id: string; count: number }>;
+
+      this.dailyRunCounts.clear();
+      this.lastRunDate = today;
+
+      for (const row of rows) {
+        this.dailyRunCounts.set(row.strategy_id, row.count);
+      }
+
+      logger.debug({ date: today, strategies: rows.length }, 'Hydrated daily run counts from DB');
+    } catch (err) {
+      logger.error(
+        { err: err instanceof Error ? err.message : String(err) },
+        'Failed to hydrate daily run counts from DB — starting with empty counts',
+      );
+      this.dailyRunCounts.clear();
     }
   }
 }
