@@ -242,6 +242,12 @@ function createAllDeps() {
     keyManagerService: createMockKeyManagerService(),
     creditPoolService: createMockCreditPoolService(),
     usageTrackingService: createMockUsageTrackingService(),
+    runLock: {
+      acquire: vi.fn().mockReturnValue(true),
+      release: vi.fn(),
+      isLocked: vi.fn().mockReturnValue(false),
+      releaseAll: vi.fn(),
+    },
   };
 }
 

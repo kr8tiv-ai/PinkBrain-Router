@@ -1,10 +1,12 @@
 import type { FastifyInstance } from 'fastify';
 import type { RunService } from '../services/RunService.js';
 import type { StateMachine } from '../engine/StateMachine.js';
+import type { RunLock } from '../engine/RunLock.js';
 
 export interface RunRouteDeps {
   runService: RunService;
   stateMachine: StateMachine;
+  runLock: RunLock;
 }
 
 export async function runRoutes(
@@ -38,12 +40,24 @@ export async function runRoutes(
     handler: async (request, reply) => {
       const { strategyId } = request.body as { strategyId: string };
 
-      // Create the run
-      const run = deps.runService.create(strategyId);
+      // Acquire run lock — reject concurrent runs for the same strategy
+      if (!deps.runLock.acquire(strategyId)) {
+        return reply.code(409).send({
+          error: 'A run is already in progress for this strategy',
+          statusCode: 409,
+        });
+      }
 
-      // Execute the run via state machine
-      const executedRun = await deps.stateMachine.execute(run);
-      return stripRun(executedRun);
+      try {
+        // Create the run
+        const run = deps.runService.create(strategyId);
+
+        // Execute the run via state machine
+        const executedRun = await deps.stateMachine.execute(run);
+        return stripRun(executedRun);
+      } finally {
+        deps.runLock.release(strategyId);
+      }
     },
   });
 
