@@ -11,9 +11,11 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/status-in%20development-yellow?style=flat-square" />
+  <img src="https://img.shields.io/badge/Bags%20Hackathon-Q1%202026%20%E2%80%A2%20%244M%20Pool-ff69b4?style=flat-square" />
   <img src="https://img.shields.io/badge/platform-Bags.fm%20App%20Store-blueviolet?style=flat-square" />
   <img src="https://img.shields.io/badge/chain-Solana-9945FF?style=flat-square&logo=solana&logoColor=white" />
   <img src="https://img.shields.io/badge/AI%20gateway-OpenRouter-10A37F?style=flat-square" />
+  <img src="https://img.shields.io/badge/TypeScript-strict-3178C6?style=flat-square&logo=typescript&logoColor=white" />
   <img src="https://img.shields.io/badge/license-MIT-green?style=flat-square" />
 </p>
 
@@ -194,6 +196,53 @@ npm run dev
 | `EXECUTION_KILL_SWITCH` | No | Emergency pause all operations (default: false) |
 
 See [`.env.example`](./backend/.env.example) for the full list.
+
+---
+
+## API Reference
+
+All endpoints require `Authorization: Bearer <API_AUTH_TOKEN>`.
+
+### Strategies
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/strategies` | List all strategies |
+| `POST` | `/api/strategies` | Create new strategy |
+| `GET` | `/api/strategies/:id` | Get strategy details |
+| `PATCH` | `/api/strategies/:id` | Update strategy config |
+| `POST` | `/api/strategies/:id/enable` | Enable strategy |
+| `POST` | `/api/strategies/:id/disable` | Disable strategy |
+
+### Runs
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/runs` | List runs (filterable by strategy) |
+| `POST` | `/api/runs` | Trigger manual run |
+| `GET` | `/api/runs/:id` | Get run details + phase log |
+| `POST` | `/api/runs/:id/resume` | Resume failed run from checkpoint |
+
+### Keys
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/keys` | List all provisioned user keys |
+| `GET` | `/api/keys/:wallet` | Get key details for a wallet |
+| `POST` | `/api/keys/:wallet/rotate` | Rotate a user's API key |
+| `DELETE` | `/api/keys/:wallet` | Revoke and delete a user's key |
+| `GET` | `/api/keys/:wallet/usage` | Usage breakdown (daily/weekly/monthly) |
+
+### Credit Pool & Stats
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/pool` | Pool balance, total allocated, remaining |
+| `GET` | `/api/pool/history` | Funding + allocation history |
+| `GET` | `/api/stats` | Aggregate stats (SOL claimed, USD converted, keys provisioned) |
+| `GET` | `/api/health` | Dependency health check (Bags, Helius, OpenRouter, DB) |
+
+> Full request/response schemas are documented in [PRD.md](./PRD.md) sections 9&ndash;10.
 
 ---
 

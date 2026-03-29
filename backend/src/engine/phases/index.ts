@@ -1,13 +1,13 @@
 import type { RunState, PhaseResult, CreditRun } from '../../types/index.js';
 import type { PhaseHandler } from '../StateMachine.js';
-import { claimPhase } from './claim.js';
+import { createClaimPhase, defaultClaimPhase, type ClaimPhaseDeps } from './claim.js';
 import { swapPhase } from './swap.js';
 import { createBridgePhase, type BridgePhaseDeps } from './bridge.js';
 import { createFundPhase, type FundPhaseDeps } from './fund.js';
 import { createAllocatePhase, type AllocatePhaseDeps, allocatePhase as defaultAllocatePhase } from './allocate.js';
 import { createProvisionPhase, type ProvisionPhaseDeps, provisionPhase as defaultProvisionPhase } from './provision.js';
 
-export type { BridgePhaseDeps, FundPhaseDeps, AllocatePhaseDeps, ProvisionPhaseDeps };
+export type { ClaimPhaseDeps, BridgePhaseDeps, FundPhaseDeps, AllocatePhaseDeps, ProvisionPhaseDeps };
 
 /**
  * Create phase handlers with injected dependencies.
@@ -15,15 +15,21 @@ export type { BridgePhaseDeps, FundPhaseDeps, AllocatePhaseDeps, ProvisionPhaseD
  * claim and swap are stub implementations.
  */
 export function createPhaseHandlerMap(deps?: {
+  claim?: ClaimPhaseDeps;
   bridge?: BridgePhaseDeps;
   fund?: FundPhaseDeps;
   allocate?: AllocatePhaseDeps;
   provision?: ProvisionPhaseDeps;
 }): Map<RunState, PhaseHandler> {
+  const claimDeps = deps?.claim;
   const bridgeDeps = deps?.bridge;
   const fundDeps = deps?.fund;
   const allocateDeps = deps?.allocate;
   const provisionDeps = deps?.provision;
+
+  const claimHandler = claimDeps
+    ? createClaimPhase(claimDeps)
+    : defaultClaimPhase;
 
   const bridgeHandler = bridgeDeps
     ? createBridgePhase(bridgeDeps)
@@ -42,7 +48,7 @@ export function createPhaseHandlerMap(deps?: {
     : defaultProvisionPhase;
 
   return new Map<RunState, (run: CreditRun) => Promise<PhaseResult>>([
-    ['CLAIMING', claimPhase],
+    ['CLAIMING', claimHandler],
     ['SWAPPING', swapPhase],
     ['BRIDGING', bridgeHandler],
     ['FUNDING', fundHandler],
@@ -93,7 +99,7 @@ async function defaultFundPhase(run: CreditRun): Promise<PhaseResult> {
   };
 }
 
-export { claimPhase } from './claim.js';
+export { defaultClaimPhase } from './claim.js';
 export { swapPhase } from './swap.js';
 export { createBridgePhase } from './bridge.js';
 export { createFundPhase } from './fund.js';

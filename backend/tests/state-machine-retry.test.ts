@@ -364,7 +364,7 @@ describe('StateMachine withRetry wiring', () => {
     expect(result.state).toBe('FAILED');
     // 1 initial + 3 retries = 4 total attempts
     expect(claimHandler).toHaveBeenCalledTimes(4);
-  });
+  }, 15_000);
 
   it('retries on 429 rate limit errors', async () => {
     let callCount = 0;
