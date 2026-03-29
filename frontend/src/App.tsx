@@ -9,7 +9,9 @@ const StrategyList = lazy(() => import('@/pages/StrategyList'));
 const StrategyCreate = lazy(() => import('@/pages/StrategyCreate'));
 const StrategyDetail = lazy(() => import('@/pages/StrategyDetail'));
 const RunsPage = lazy(() => import('@/pages/Runs'));
-const KeysPage = lazy(() => import('@/pages/Keys'));
+const RunDetail = lazy(() => import('@/pages/RunDetail'));
+const KeysPage = lazy(() => import('@/pages/KeyList'));
+const KeyDetail = lazy(() => import('@/pages/KeyDetail'));
 const CreditPoolPage = lazy(() => import('@/pages/CreditPool'));
 const HealthPage = lazy(() => import('@/pages/Health'));
 
@@ -41,7 +43,9 @@ export default function App() {
               <Route path="strategies/new" element={<StrategyCreate />} />
               <Route path="strategies/:id" element={<StrategyDetail />} />
               <Route path="runs" element={<RunsPage />} />
+              <Route path="runs/:id" element={<RunDetail />} />
               <Route path="keys" element={<KeysPage />} />
+              <Route path="keys/:hash" element={<KeyDetail />} />
               <Route path="credit-pool" element={<CreditPoolPage />} />
               <Route path="health" element={<HealthPage />} />
               <Route path="*" element={<Navigate to="/strategies" replace />} />
