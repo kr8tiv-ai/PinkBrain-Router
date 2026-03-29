@@ -4,22 +4,26 @@ import { claimPhase } from './claim.js';
 import { swapPhase } from './swap.js';
 import { createBridgePhase, type BridgePhaseDeps } from './bridge.js';
 import { createFundPhase, type FundPhaseDeps } from './fund.js';
-import { allocatePhase } from './allocate.js';
-import { provisionPhase } from './provision.js';
+import { createAllocatePhase, type AllocatePhaseDeps, allocatePhase as defaultAllocatePhase } from './allocate.js';
+import { createProvisionPhase, type ProvisionPhaseDeps, provisionPhase as defaultProvisionPhase } from './provision.js';
 
-export type { BridgePhaseDeps, FundPhaseDeps };
+export type { BridgePhaseDeps, FundPhaseDeps, AllocatePhaseDeps, ProvisionPhaseDeps };
 
 /**
  * Create phase handlers with injected dependencies.
- * Bridge and fund phases require service dependencies;
- * claim, swap, allocate, and provision are stub implementations.
+ * Bridge, fund, allocate, and provision phases require service dependencies;
+ * claim and swap are stub implementations.
  */
 export function createPhaseHandlerMap(deps?: {
   bridge?: BridgePhaseDeps;
   fund?: FundPhaseDeps;
+  allocate?: AllocatePhaseDeps;
+  provision?: ProvisionPhaseDeps;
 }): Map<RunState, PhaseHandler> {
   const bridgeDeps = deps?.bridge;
   const fundDeps = deps?.fund;
+  const allocateDeps = deps?.allocate;
+  const provisionDeps = deps?.provision;
 
   const bridgeHandler = bridgeDeps
     ? createBridgePhase(bridgeDeps)
@@ -29,13 +33,21 @@ export function createPhaseHandlerMap(deps?: {
     ? createFundPhase(fundDeps)
     : defaultFundPhase;
 
+  const allocateHandler = allocateDeps
+    ? createAllocatePhase(allocateDeps)
+    : defaultAllocatePhase;
+
+  const provisionHandler = provisionDeps
+    ? createProvisionPhase(provisionDeps)
+    : defaultProvisionPhase;
+
   return new Map<RunState, (run: CreditRun) => Promise<PhaseResult>>([
     ['CLAIMING', claimPhase],
     ['SWAPPING', swapPhase],
     ['BRIDGING', bridgeHandler],
     ['FUNDING', fundHandler],
-    ['ALLOCATING', allocatePhase],
-    ['PROVISIONING', provisionPhase],
+    ['ALLOCATING', allocateHandler],
+    ['PROVISIONING', provisionHandler],
   ]);
 }
 
@@ -85,5 +97,5 @@ export { claimPhase } from './claim.js';
 export { swapPhase } from './swap.js';
 export { createBridgePhase } from './bridge.js';
 export { createFundPhase } from './fund.js';
-export { allocatePhase } from './allocate.js';
-export { provisionPhase } from './provision.js';
+export { createAllocatePhase, allocatePhase } from './allocate.js';
+export { createProvisionPhase, provisionPhase } from './provision.js';
