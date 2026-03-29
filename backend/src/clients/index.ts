@@ -3,3 +3,5 @@ export type { BagsAdapter, BagsRequestOptions, BagsRequestPriority } from '../ty
 export { OpenRouterClient } from './OpenRouterClient.js';
 export { CctpClient } from './CctpClient.js';
 export { CircuitBreaker, CircuitBreakerOpenError } from './CircuitBreaker.js';
+export { HeliusClient } from './HeliusClient.js';
+export type { HeliusClientConfig, HolderRecord } from './HeliusClient.js';
