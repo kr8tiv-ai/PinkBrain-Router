@@ -14,7 +14,19 @@ export async function healthRoutes(
   app: FastifyInstance,
   deps: HealthDeps,
 ): Promise<void> {
-  app.get('/health', {
+  // Liveness probe — always returns 200 if the process is running
+  app.get('/health/live', {
+    handler: async (_request, reply) => {
+      reply.send({
+        status: 'ok',
+        timestamp: new Date().toISOString(),
+        uptime: process.uptime(),
+      });
+    },
+  });
+
+  // Readiness probe — checks dependencies, returns 503 if any are down
+  app.get('/health/ready', {
     handler: async (_request, reply) => {
       const startTime = Date.now();
 
@@ -43,15 +55,17 @@ export async function healthRoutes(
         openrouter = false;
       }
 
+      const allHealthy = database && openrouter;
+
       const response = {
-        status: 'ok' as const,
+        status: allHealthy ? 'ok' : 'degraded',
         timestamp: new Date().toISOString(),
         uptime: process.uptime(),
         dependencies: { openrouter, database },
         responseTimeMs: Date.now() - startTime,
       };
 
-      reply.send(response);
+      reply.code(allHealthy ? 200 : 503).send(response);
     },
   });
 }

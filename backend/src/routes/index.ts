@@ -6,6 +6,7 @@ import { keyRoutes } from './keys.js';
 import { creditPoolRoutes } from './credit-pool.js';
 import { usageRoutes } from './usage.js';
 import { statsRoutes } from './stats.js';
+import { authHookFactory } from '../plugins/auth.js';
 import type { HealthDeps } from './health.js';
 import type { StrategyRouteDeps } from './strategies.js';
 import type { RunRouteDeps } from './runs.js';
@@ -21,7 +22,9 @@ export interface AllRouteDeps extends
   KeyRouteDeps,
   CreditPoolRouteDeps,
   UsageRouteDeps,
-  StatsRouteDeps {}
+  StatsRouteDeps {
+  apiAuthToken: string;
+}
 
 export async function registerAllRoutes(
   app: FastifyInstance,
@@ -29,9 +32,12 @@ export async function registerAllRoutes(
 ): Promise<void> {
   await app.register(
     async (api) => {
+      // Auth scoped to /api routes only
+      const authHook = authHookFactory(deps.apiAuthToken);
+      api.addHook('preHandler', authHook);
+
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await healthRoutes(api as any, deps);
-      await strategyRoutes(api, deps);
+      await strategyRoutes(api as any, deps);
       await runRoutes(api, deps);
       await keyRoutes(api, deps);
       await creditPoolRoutes(api, deps);

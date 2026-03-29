@@ -233,6 +233,7 @@ function createMockUsageTrackingService() {
 
 function createAllDeps() {
   return {
+    apiAuthToken: TEST_TOKEN,
     db: createMockDb(),
     openRouterClient: createMockOpenRouterClient(),
     strategyService: createMockStrategyService(),
@@ -736,9 +737,6 @@ describe('Auth enforcement on all routes', () => {
   for (const route of routes) {
     it(`${route.method} ${route.url} returns 401 without auth`, async () => {
       const app = Fastify({ logger: false });
-      // Register auth hook first (mirrors what buildApp does)
-      const { authHookFactory } = await import('../src/plugins/auth.js');
-      app.addHook('preHandler', authHookFactory(TEST_TOKEN));
       await registerAllRoutes(app, createAllDeps());
       const res = await app.inject({ method: route.method, url: route.url });
       expect(res.statusCode).toBe(401);

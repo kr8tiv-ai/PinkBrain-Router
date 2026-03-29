@@ -7,11 +7,15 @@ import type { OpenRouterClient } from '../src/clients/OpenRouterClient.js';
 
 vi.mock('pino', () => ({
   default: vi.fn(() => ({
+    fatal: vi.fn(),
+    trace: vi.fn(),
     debug: vi.fn(),
     info: vi.fn(),
     warn: vi.fn(),
     error: vi.fn(),
     child: vi.fn(() => ({
+      fatal: vi.fn(),
+      trace: vi.fn(),
       debug: vi.fn(),
       info: vi.fn(),
       warn: vi.fn(),
@@ -54,13 +58,12 @@ function createMockOpenRouterClient(): OpenRouterClient {
 
 function createDeps(overrides?: Partial<DatabaseConnection & OpenRouterClient>) {
   return {
-    port: 0, // Use port 0 to let OS assign a free port
+    port: 0,
     apiAuthToken: TEST_TOKEN,
     db: overrides ? { ...createMockDb(), ...overrides } : createMockDb(),
     openRouterClient: overrides
       ? ({ ...createMockOpenRouterClient(), ...overrides } as unknown as OpenRouterClient)
       : createMockOpenRouterClient(),
-    // Mock services required by AllRouteDeps
     strategyService: {
       getAll: vi.fn().mockReturnValue([]),
       getById: vi.fn().mockReturnValue(null),
@@ -174,17 +177,16 @@ describe('authHookFactory', () => {
   });
 });
 
-// ─── Health route tests ─────────────────────────────────────────
+// ─── Liveness probe tests ───────────────────────────────────────
 
-describe('GET /health', () => {
-  it('returns ok status with all dependency checks passing', async () => {
+describe('GET /health/live', () => {
+  it('returns 200 with ok status without authentication', async () => {
     const deps = createDeps();
     const app = await buildApp(deps);
 
     const response = await app.inject({
       method: 'GET',
-      url: '/api/health',
-      headers: { authorization: `Bearer ${TEST_TOKEN}` },
+      url: '/health/live',
     });
 
     expect(response.statusCode).toBe(200);
@@ -193,13 +195,35 @@ describe('GET /health', () => {
     expect(body).toHaveProperty('timestamp');
     expect(body).toHaveProperty('uptime');
     expect(typeof body.uptime).toBe('number');
+
+    await app.close();
+  });
+});
+
+// ─── Readiness probe tests ──────────────────────────────────────
+
+describe('GET /health/ready', () => {
+  it('returns 200 with all dependencies healthy', async () => {
+    const deps = createDeps();
+    const app = await buildApp(deps);
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/health/ready',
+    });
+
+    expect(response.statusCode).toBe(200);
+    const body = response.json();
+    expect(body.status).toBe('ok');
+    expect(body).toHaveProperty('timestamp');
+    expect(body).toHaveProperty('uptime');
     expect(body.dependencies).toEqual({ openrouter: true, database: true });
     expect(body).toHaveProperty('responseTimeMs');
 
     await app.close();
   });
 
-  it('returns degraded status when database is unreachable', async () => {
+  it('returns 503 when database is unreachable', async () => {
     const badDb = createMockDb();
     (badDb.prepare as ReturnType<typeof vi.fn>).mockImplementation(() => {
       throw new Error('Database is locked');
@@ -210,19 +234,19 @@ describe('GET /health', () => {
 
     const response = await app.inject({
       method: 'GET',
-      url: '/api/health',
-      headers: { authorization: `Bearer ${TEST_TOKEN}` },
+      url: '/health/ready',
     });
 
-    expect(response.statusCode).toBe(200);
+    expect(response.statusCode).toBe(503);
     const body = response.json();
+    expect(body.status).toBe('degraded');
     expect(body.dependencies.database).toBe(false);
     expect(body.dependencies.openrouter).toBe(true);
 
     await app.close();
   });
 
-  it('returns degraded status when OpenRouter is unreachable', async () => {
+  it('returns 503 when OpenRouter is unreachable', async () => {
     const badClient = createMockOpenRouterClient();
     vi.mocked(badClient.getAccountCredits).mockRejectedValue(new Error('Network error'));
 
@@ -232,19 +256,19 @@ describe('GET /health', () => {
 
     const response = await app.inject({
       method: 'GET',
-      url: '/api/health',
-      headers: { authorization: `Bearer ${TEST_TOKEN}` },
+      url: '/health/ready',
     });
 
-    expect(response.statusCode).toBe(200);
+    expect(response.statusCode).toBe(503);
     const body = response.json();
+    expect(body.status).toBe('degraded');
     expect(body.dependencies.database).toBe(true);
     expect(body.dependencies.openrouter).toBe(false);
 
     await app.close();
   });
 
-  it('returns degraded status when both dependencies are unreachable', async () => {
+  it('returns 503 when both dependencies are unreachable', async () => {
     const badDb = createMockDb();
     (badDb.prepare as ReturnType<typeof vi.fn>).mockImplementation(() => {
       throw new Error('Database is locked');
@@ -259,20 +283,35 @@ describe('GET /health', () => {
 
     const response = await app.inject({
       method: 'GET',
-      url: '/api/health',
-      headers: { authorization: `Bearer ${TEST_TOKEN}` },
+      url: '/health/ready',
     });
 
-    expect(response.statusCode).toBe(200);
+    expect(response.statusCode).toBe(503);
     const body = response.json();
+    expect(body.status).toBe('degraded');
     expect(body.dependencies.database).toBe(false);
     expect(body.dependencies.openrouter).toBe(false);
 
     await app.close();
   });
+
+  it('returns 200 without authentication', async () => {
+    const deps = createDeps();
+    const app = await buildApp(deps);
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/health/ready',
+      // No Authorization header
+    });
+
+    expect(response.statusCode).toBe(200);
+
+    await app.close();
+  });
 });
 
-// ─── Server lifecycle tests ─────────────────────────────────────
+// ─── Server lifecycle and auth scoping tests ────────────────────
 
 describe('buildApp / startServer', () => {
   it('buildApp returns a configured Fastify instance', async () => {
@@ -295,17 +334,98 @@ describe('buildApp / startServer', () => {
     await app.close();
   });
 
-  it('unauthenticated request to any route returns 401', async () => {
+  it('unauthenticated request to /api routes returns 401', async () => {
     const deps = createDeps();
     const app = await buildApp(deps);
 
-    // Try /health without auth
+    // /api routes require auth
     const response = await app.inject({
       method: 'GET',
-      url: '/api/health',
+      url: '/api/strategies',
     });
 
     expect(response.statusCode).toBe(401);
+    await app.close();
+  });
+
+  it('unauthenticated request to /health routes returns 200', async () => {
+    const deps = createDeps();
+    const app = await buildApp(deps);
+
+    // Health routes don't require auth
+    const response = await app.inject({
+      method: 'GET',
+      url: '/health/live',
+    });
+
+    expect(response.statusCode).toBe(200);
+    await app.close();
+  });
+});
+
+// ─── Error handler tests ────────────────────────────────────────
+
+describe('Error handler', () => {
+  it('returns normalized JSON for unhandled routes', async () => {
+    const deps = createDeps();
+    const app = await buildApp(deps);
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/nonexistent-route',
+    });
+
+    expect(response.statusCode).toBe(404);
+    const body = response.json();
+    expect(body).toHaveProperty('error');
+    expect(body).toHaveProperty('statusCode');
+    expect(body).toHaveProperty('message');
+    // Default is development mode, so message should be included
+    expect(typeof body.message).toBe('string');
+
+    await app.close();
+  });
+
+  it('hides error details in production mode', async () => {
+    const deps = createDeps();
+    deps.nodeEnv = 'production';
+    const app = await buildApp(deps);
+
+    // Register a route that throws to exercise our custom error handler
+    app.get('/test-error', async () => {
+      throw new Error('Secret implementation detail');
+    });
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/test-error',
+    });
+
+    expect(response.statusCode).toBe(500);
+    const body = response.json();
+    // In production, message should be generic
+    expect(body.message).toBe('Internal server error');
+    // Should NOT contain the actual error details
+    expect(body).not.toHaveProperty('stack');
+
+    await app.close();
+  });
+
+  it('includes error message in development mode', async () => {
+    const deps = createDeps();
+    deps.nodeEnv = 'development';
+    const app = await buildApp(deps);
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/nonexistent-route',
+    });
+
+    expect(response.statusCode).toBe(404);
+    const body = response.json();
+    // In development, message should be descriptive
+    expect(body.message).not.toBe('Internal server error');
+
     await app.close();
   });
 });
