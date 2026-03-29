@@ -833,17 +833,17 @@ describe('phase handler map', () => {
           bridge: vi.fn().mockResolvedValue({ success: true, amountUsdc: 100, txHash: '0x' }),
           isAvailable: vi.fn().mockReturnValue(true),
           getCircuitBreakerState: vi.fn().mockReturnValue({ state: 'CLOSED', failures: 0 }),
-        },
+        } as any,
         recipientSolanaAddress: 'test-address',
       },
       fund: {
         chargeService: {
           fund: vi.fn().mockResolvedValue({ success: true, amountFunded: 100, chargeId: 'c-1', previousBalance: 0, newBalance: 100, dryRun: false }),
           isAvailable: vi.fn().mockReturnValue(true),
-        },
+        } as any,
         creditPoolService: {
           checkAllocation: vi.fn().mockResolvedValue({ allowed: true, requestedAmount: 100, availableAfterReserve: 900, remainingAfterAllocation: 800 }),
-        },
+        } as any,
       },
     });
 

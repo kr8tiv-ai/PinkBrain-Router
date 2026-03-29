@@ -294,7 +294,7 @@ describe('S02 integration cycle', () => {
     expect(provResult.success).toBe(true);
     expect(provResult.data?.keysProvisioned).toBe(3);
     expect(provResult.data?.keysFailed).toBe(0);
-    expect(provResult.data?.keyHashes.length).toBe(3);
+    expect((provResult.data?.keyHashes as unknown[])?.length).toBe(3);
 
     // Verify keys were persisted
     expect(userKeys.length).toBe(3);

@@ -66,7 +66,7 @@ async function main() {
               get: () => null,
               all: (...p: unknown[]) => {
                 const runId = p[0] as string;
-                return (snapshots[runId] || []).map((row: unknown[]) => ({
+                return (snapshots[runId] || []).map((row: Record<string, unknown>) => ({
                   snapshotId: row[0],
                   runId: row[1],
                   holderWallet: row[2],

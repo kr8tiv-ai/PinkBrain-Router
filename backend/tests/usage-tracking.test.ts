@@ -37,7 +37,12 @@ function makeKeyData(overrides: Partial<KeyData> & { hash: string } = { hash: 'h
 
 // ─── Mock DB ────────────────────────────────────────────────────
 
-function createMockDb() {
+interface MockDatabase extends DatabaseConnection {
+  _rows: Array<Record<string, unknown>>;
+  _mockGetKeysResult: Array<{ openrouterKeyHash: string; strategyId: string }>;
+}
+
+function createMockDb(): MockDatabase {
   const rows: Array<Record<string, unknown>> = [];
 
   const mockGetKeysResult: Array<{ openrouterKeyHash: string; strategyId: string }> = [
@@ -117,9 +122,9 @@ function createMockDb() {
     },
     exec: () => {},
     pragma: () => {},
-    transaction: (fn: () => unknown) => fn,
+    transaction: (fn: () => unknown) => fn(),
     close: () => {},
-  } as unknown as DatabaseConnection;
+  } as MockDatabase;
 }
 
 // ─── Mock OpenRouterClient ─────────────────────────────────────

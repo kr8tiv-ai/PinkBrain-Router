@@ -33,7 +33,7 @@ const mockKeyData: KeyData = {
   expires_at: '2026-01-15T00:00:00Z',
 };
 
-function createMockClient(overrides: Record<string, any> = {}): ReturnType<typeof mockAxios.create> {
+function createMockClient(overrides: Record<string, unknown> = {}) {
   return {
     get: vi.fn().mockResolvedValue({ data: null, headers: {} }),
     post: vi.fn().mockResolvedValue({ data: null, headers: {} }),
@@ -42,7 +42,7 @@ function createMockClient(overrides: Record<string, any> = {}): ReturnType<typeo
     interceptors: { response: { use: vi.fn() } },
     defaults: {},
     ...overrides,
-  } as any;
+  };
 }
 
 describe('OpenRouterClient', () => {
@@ -191,8 +191,9 @@ describe('OpenRouterClient', () => {
         ...createMockClient(),
         interceptors: {
           response: {
-            use: (_success: any, error: any) => {
-              interceptor = error;
+            use: (_success: unknown, error: unknown) => {
+              interceptor = error as (err: unknown) => Promise<unknown>;
+              return 0;
             },
           },
         },

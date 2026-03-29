@@ -108,7 +108,7 @@ describe('DistributionService', () => {
       holders,
     );
 
-    expect(result.success !== undefined).toBe(false); // not a PhaseResult, AllocationResult
+    expect('success' in result).toBe(false); // not a PhaseResult, AllocationResult
     expect(result.holderCount).toBe(3);
     expect(result.totalAllocatedUsd).toBe(300);
     expect(result.allocationMode).toBe('TOP_N_HOLDERS');
@@ -763,17 +763,17 @@ describe('phase handler map with allocate/provision', () => {
           bridge: vi.fn().mockResolvedValue({ success: true, amountUsdc: 100, txHash: '0x' }),
           isAvailable: vi.fn().mockReturnValue(true),
           getCircuitBreakerState: vi.fn().mockReturnValue({ state: 'CLOSED', failures: 0 }),
-        },
+        } as any,
         recipientSolanaAddress: 'test-address',
       },
       fund: {
         chargeService: {
           fund: vi.fn().mockResolvedValue({ success: true, amountFunded: 100, chargeId: 'c-1', previousBalance: 0, newBalance: 100, dryRun: false }),
           isAvailable: vi.fn().mockReturnValue(true),
-        },
+        } as any,
         creditPoolService: {
           checkAllocation: vi.fn().mockResolvedValue({ allowed: true }),
-        },
+        } as any,
       },
       allocate: {
         distributionService: {
@@ -786,14 +786,14 @@ describe('phase handler map with allocate/provision', () => {
             allocations: [],
             skippedHolders: 0,
           }),
-        },
+        } as any,
         strategyService: {
           getById: vi.fn().mockReturnValue({
             strategyId: 's1',
             distribution: 'TOP_N_HOLDERS',
             exclusionList: [],
           }),
-        },
+        } as any,
         resolveHolders: async () => [],
       },
       provision: {
@@ -805,16 +805,16 @@ describe('phase handler map with allocate/provision', () => {
             failedWallets: [],
             keyHashes: [],
           }),
-        },
+        } as any,
         distributionService: {
           getSnapshotsByRun: vi.fn().mockReturnValue([]),
-        },
+        } as any,
         strategyService: {
           getById: vi.fn().mockReturnValue({
             strategyId: 's1',
             keyConfig: { defaultLimitUsd: 10, limitReset: 'monthly', expiryDays: 365 },
           }),
-        },
+        } as any,
       },
     });
 

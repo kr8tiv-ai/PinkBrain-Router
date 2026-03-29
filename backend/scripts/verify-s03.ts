@@ -179,7 +179,8 @@ interface InjectResult {
 }
 
 async function inject(
-  app: ReturnType<Fastify['inject'] extends (opts: infer O) => Promise<infer R> ? (opts: O) => Promise<R> : never>,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  app: any,
   method: string,
   url: string,
   token?: string,

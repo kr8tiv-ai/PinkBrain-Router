@@ -33,7 +33,7 @@ function createMockDb(): DatabaseConnection {
     }),
     exec: vi.fn(),
     pragma: vi.fn(),
-    transaction: vi.fn(<T>(fn: () => T) => fn),
+    transaction: vi.fn(<T>(fn: () => T): T => fn()) as <T>(fn: () => T) => T,
     close: vi.fn(),
   };
 }
