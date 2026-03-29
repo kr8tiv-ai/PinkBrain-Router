@@ -3,15 +3,14 @@ import cors from '@fastify/cors';
 import rateLimit from '@fastify/rate-limit';
 import sensible from '@fastify/sensible';
 import { authHookFactory } from './plugins/auth.js';
-import { healthRoutes } from './routes/health.js';
+import { registerAllRoutes } from './routes/index.js';
+import type { AllRouteDeps } from './routes/index.js';
 import type { DatabaseConnection } from './services/Database.js';
 import type { OpenRouterClient } from './clients/OpenRouterClient.js';
 
-export interface ServerDeps {
+export interface ServerDeps extends AllRouteDeps {
   port: number;
   apiAuthToken: string;
-  db: DatabaseConnection;
-  openRouterClient: OpenRouterClient;
 }
 
 export async function buildApp(deps: ServerDeps) {
@@ -37,12 +36,8 @@ export async function buildApp(deps: ServerDeps) {
   const authHook = authHookFactory(deps.apiAuthToken);
   app.addHook('preHandler', authHook);
 
-  // Health route
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  await healthRoutes(app as any, {
-    db: deps.db,
-    openRouterClient: deps.openRouterClient,
-  });
+  // Register all routes under /api prefix
+  await registerAllRoutes(app, deps);
 
   // Clean shutdown hook
   app.addHook('onClose', async () => {

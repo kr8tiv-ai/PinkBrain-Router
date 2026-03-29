@@ -24,13 +24,18 @@ export async function registerAllRoutes(
   app: FastifyInstance,
   deps: AllRouteDeps,
 ): Promise<void> {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  await healthRoutes(app as any, deps);
-  await strategyRoutes(app, deps);
-  await runRoutes(app, deps);
-  await keyRoutes(app, deps);
-  await creditPoolRoutes(app, deps);
-  await usageRoutes(app, deps);
+  await app.register(
+    async (api) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await healthRoutes(api as any, deps);
+      await strategyRoutes(api, deps);
+      await runRoutes(api, deps);
+      await keyRoutes(api, deps);
+      await creditPoolRoutes(api, deps);
+      await usageRoutes(api, deps);
+    },
+    { prefix: '/api' },
+  );
 }
 
 export { healthRoutes } from './health.js';

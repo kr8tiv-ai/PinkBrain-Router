@@ -60,6 +60,46 @@ function createDeps(overrides?: Partial<DatabaseConnection & OpenRouterClient>) 
     openRouterClient: overrides
       ? ({ ...createMockOpenRouterClient(), ...overrides } as unknown as OpenRouterClient)
       : createMockOpenRouterClient(),
+    // Mock services required by AllRouteDeps
+    strategyService: {
+      getAll: vi.fn().mockReturnValue([]),
+      getById: vi.fn().mockReturnValue(null),
+      create: vi.fn(),
+      update: vi.fn(),
+      delete: vi.fn(),
+    },
+    runService: {
+      create: vi.fn().mockReturnValue({ runId: 'test-run', state: 'PENDING', strategyId: 'test' }),
+      getById: vi.fn().mockReturnValue(null),
+      getByStrategyId: vi.fn().mockReturnValue([]),
+      getLatestByStrategy: vi.fn().mockReturnValue(null),
+      updateState: vi.fn(),
+      markFailed: vi.fn(),
+    },
+    stateMachine: {
+      execute: vi.fn().mockResolvedValue({ runId: 'test-run', state: 'COMPLETE' }),
+      resume: vi.fn().mockResolvedValue({ runId: 'test-run', state: 'CLAIMING' }),
+    },
+    keyManagerService: {
+      getKeysByStrategy: vi.fn().mockReturnValue([]),
+      getActiveKey: vi.fn().mockReturnValue(null),
+      revokeKey: vi.fn().mockResolvedValue(false),
+      provisionKeys: vi.fn(),
+    },
+    creditPoolService: {
+      getStatus: vi.fn().mockResolvedValue({ balance: 0, allocated: 0, available: 0, reserve: 0, runway: '0 days' }),
+      getPoolState: vi.fn().mockResolvedValue({ totalBalanceUsd: 0, totalAllocatedUsd: 0, availableUsd: 0, reservePct: 0, reservedUsd: 0, lastUpdated: '' }),
+      checkAllocation: vi.fn().mockResolvedValue({ allowed: true }),
+      recordAllocation: vi.fn(),
+      invalidateCache: vi.fn(),
+    },
+    usageTrackingService: {
+      getKeyUsage: vi.fn().mockReturnValue([]),
+      getStrategyUsage: vi.fn().mockReturnValue([]),
+      start: vi.fn(),
+      stop: vi.fn(),
+      pollAllKeys: vi.fn(),
+    },
   };
 }
 
@@ -143,7 +183,7 @@ describe('GET /health', () => {
 
     const response = await app.inject({
       method: 'GET',
-      url: '/health',
+      url: '/api/health',
       headers: { authorization: `Bearer ${TEST_TOKEN}` },
     });
 
@@ -170,7 +210,7 @@ describe('GET /health', () => {
 
     const response = await app.inject({
       method: 'GET',
-      url: '/health',
+      url: '/api/health',
       headers: { authorization: `Bearer ${TEST_TOKEN}` },
     });
 
@@ -192,7 +232,7 @@ describe('GET /health', () => {
 
     const response = await app.inject({
       method: 'GET',
-      url: '/health',
+      url: '/api/health',
       headers: { authorization: `Bearer ${TEST_TOKEN}` },
     });
 
@@ -219,7 +259,7 @@ describe('GET /health', () => {
 
     const response = await app.inject({
       method: 'GET',
-      url: '/health',
+      url: '/api/health',
       headers: { authorization: `Bearer ${TEST_TOKEN}` },
     });
 
@@ -262,7 +302,7 @@ describe('buildApp / startServer', () => {
     // Try /health without auth
     const response = await app.inject({
       method: 'GET',
-      url: '/health',
+      url: '/api/health',
     });
 
     expect(response.statusCode).toBe(401);

@@ -239,7 +239,7 @@ async function createApp() {
 describe('Strategy Routes', () => {
   it('GET /strategies returns all strategies', async () => {
     const { app, deps } = await createApp();
-    const res = await app.inject({ method: 'GET', url: '/strategies', headers: AUTH_HEADER });
+    const res = await app.inject({ method: 'GET', url: '/api/strategies', headers: AUTH_HEADER });
     expect(res.statusCode).toBe(200);
     expect(res.json()).toHaveLength(1);
     expect(res.json()[0].strategyId).toBe('strat-0001');
@@ -251,7 +251,7 @@ describe('Strategy Routes', () => {
     const { app, deps } = await createApp();
     const res = await app.inject({
       method: 'POST',
-      url: '/strategies',
+      url: '/api/strategies',
       headers: AUTH_HEADER,
       payload: { ownerWallet: 'NewWallet' },
     });
@@ -268,7 +268,7 @@ describe('Strategy Routes', () => {
     const { app } = await createApp();
     const res = await app.inject({
       method: 'POST',
-      url: '/strategies',
+      url: '/api/strategies',
       headers: AUTH_HEADER,
       payload: {},
     });
@@ -280,7 +280,7 @@ describe('Strategy Routes', () => {
     const { app, deps } = await createApp();
     const res = await app.inject({
       method: 'GET',
-      url: '/strategies/strat-0001',
+      url: '/api/strategies/strat-0001',
       headers: AUTH_HEADER,
     });
     expect(res.statusCode).toBe(200);
@@ -293,7 +293,7 @@ describe('Strategy Routes', () => {
     const { app } = await createApp();
     const res = await app.inject({
       method: 'GET',
-      url: '/strategies/non-existent',
+      url: '/api/strategies/non-existent',
       headers: AUTH_HEADER,
     });
     expect(res.statusCode).toBe(404);
@@ -305,7 +305,7 @@ describe('Strategy Routes', () => {
     const { app, deps } = await createApp();
     const res = await app.inject({
       method: 'PATCH',
-      url: '/strategies/strat-0001',
+      url: '/api/strategies/strat-0001',
       headers: AUTH_HEADER,
       payload: { status: 'PAUSED' },
     });
@@ -318,7 +318,7 @@ describe('Strategy Routes', () => {
     const { app } = await createApp();
     const res = await app.inject({
       method: 'PATCH',
-      url: '/strategies/non-existent',
+      url: '/api/strategies/non-existent',
       headers: AUTH_HEADER,
       payload: { status: 'PAUSED' },
     });
@@ -330,7 +330,7 @@ describe('Strategy Routes', () => {
     const { app, deps } = await createApp();
     const res = await app.inject({
       method: 'DELETE',
-      url: '/strategies/strat-0001',
+      url: '/api/strategies/strat-0001',
       headers: AUTH_HEADER,
     });
     expect(res.statusCode).toBe(200);
@@ -343,7 +343,7 @@ describe('Strategy Routes', () => {
     const { app } = await createApp();
     const res = await app.inject({
       method: 'DELETE',
-      url: '/strategies/non-existent',
+      url: '/api/strategies/non-existent',
       headers: AUTH_HEADER,
     });
     expect(res.statusCode).toBe(404);
@@ -358,7 +358,7 @@ describe('Run Routes', () => {
     const { app, deps } = await createApp();
     const res = await app.inject({
       method: 'POST',
-      url: '/runs',
+      url: '/api/runs',
       headers: AUTH_HEADER,
       payload: { strategyId: 'strat-0001' },
     });
@@ -373,7 +373,7 @@ describe('Run Routes', () => {
     const { app } = await createApp();
     const res = await app.inject({
       method: 'POST',
-      url: '/runs',
+      url: '/api/runs',
       headers: AUTH_HEADER,
       payload: {},
     });
@@ -385,7 +385,7 @@ describe('Run Routes', () => {
     const { app, deps } = await createApp();
     const res = await app.inject({
       method: 'GET',
-      url: '/runs/run-0001',
+      url: '/api/runs/run-0001',
       headers: AUTH_HEADER,
     });
     expect(res.statusCode).toBe(200);
@@ -398,7 +398,7 @@ describe('Run Routes', () => {
     const { app } = await createApp();
     const res = await app.inject({
       method: 'GET',
-      url: '/runs/non-existent',
+      url: '/api/runs/non-existent',
       headers: AUTH_HEADER,
     });
     expect(res.statusCode).toBe(404);
@@ -410,7 +410,7 @@ describe('Run Routes', () => {
     const { app, deps } = await createApp();
     const res = await app.inject({
       method: 'GET',
-      url: '/runs/strategy/strat-0001',
+      url: '/api/runs/strategy/strat-0001',
       headers: AUTH_HEADER,
     });
     expect(res.statusCode).toBe(200);
@@ -430,7 +430,7 @@ describe('Run Routes', () => {
 
     const res = await app.inject({
       method: 'POST',
-      url: '/runs/run-0001/resume',
+      url: '/api/runs/run-0001/resume',
       headers: AUTH_HEADER,
     });
     expect(res.statusCode).toBe(200);
@@ -442,7 +442,7 @@ describe('Run Routes', () => {
     const { app } = await createApp();
     const res = await app.inject({
       method: 'POST',
-      url: '/runs/run-0001/resume',
+      url: '/api/runs/run-0001/resume',
       headers: AUTH_HEADER,
     });
     // mockRun has state COMPLETE, so resume should reject
@@ -455,7 +455,7 @@ describe('Run Routes', () => {
     const { app } = await createApp();
     const res = await app.inject({
       method: 'POST',
-      url: '/runs/non-existent/resume',
+      url: '/api/runs/non-existent/resume',
       headers: AUTH_HEADER,
     });
     expect(res.statusCode).toBe(404);
@@ -470,7 +470,7 @@ describe('Key Routes', () => {
     const { app, deps } = await createApp();
     const res = await app.inject({
       method: 'GET',
-      url: '/keys',
+      url: '/api/keys',
       headers: AUTH_HEADER,
     });
     expect(res.statusCode).toBe(200);
@@ -487,7 +487,7 @@ describe('Key Routes', () => {
     const { app, deps } = await createApp();
     const res = await app.inject({
       method: 'GET',
-      url: '/keys/key-hash-001',
+      url: '/api/keys/key-hash-001',
       headers: AUTH_HEADER,
     });
     expect(res.statusCode).toBe(200);
@@ -500,7 +500,7 @@ describe('Key Routes', () => {
     const { app, deps } = await createApp();
     const res = await app.inject({
       method: 'GET',
-      url: '/keys/strategy/strat-0001',
+      url: '/api/keys/strategy/strat-0001',
       headers: AUTH_HEADER,
     });
     expect(res.statusCode).toBe(200);
@@ -518,7 +518,7 @@ describe('Key Routes', () => {
     const { app, deps } = await createApp();
     const res = await app.inject({
       method: 'DELETE',
-      url: '/keys/key-hash-001',
+      url: '/api/keys/key-hash-001',
       headers: AUTH_HEADER,
       payload: { keyId: 'uk-0001' },
     });
@@ -536,7 +536,7 @@ describe('Key Routes', () => {
 
     const res = await app.inject({
       method: 'DELETE',
-      url: '/keys/key-hash-001',
+      url: '/api/keys/key-hash-001',
       headers: AUTH_HEADER,
       payload: { keyId: 'non-existent' },
     });
@@ -548,7 +548,7 @@ describe('Key Routes', () => {
     const { app } = await createApp();
     const res = await app.inject({
       method: 'DELETE',
-      url: '/keys/key-hash-001',
+      url: '/api/keys/key-hash-001',
       headers: AUTH_HEADER,
       payload: {},
     });
@@ -564,7 +564,7 @@ describe('Credit Pool Routes', () => {
     const { app, deps } = await createApp();
     const res = await app.inject({
       method: 'GET',
-      url: '/credit-pool',
+      url: '/api/credit-pool',
       headers: AUTH_HEADER,
     });
     expect(res.statusCode).toBe(200);
@@ -586,7 +586,7 @@ describe('Usage Routes', () => {
     const { app, deps } = await createApp();
     const res = await app.inject({
       method: 'GET',
-      url: '/usage/key/key-hash-001',
+      url: '/api/usage/key/key-hash-001',
       headers: AUTH_HEADER,
     });
     expect(res.statusCode).toBe(200);
@@ -600,7 +600,7 @@ describe('Usage Routes', () => {
     const { app, deps } = await createApp();
     const res = await app.inject({
       method: 'GET',
-      url: '/usage/key/key-hash-001?limit=10',
+      url: '/api/usage/key/key-hash-001?limit=10',
       headers: AUTH_HEADER,
     });
     expect(res.statusCode).toBe(200);
@@ -612,7 +612,7 @@ describe('Usage Routes', () => {
     const { app, deps } = await createApp();
     const res = await app.inject({
       method: 'GET',
-      url: '/usage/strategy/strat-0001',
+      url: '/api/usage/strategy/strat-0001',
       headers: AUTH_HEADER,
     });
     expect(res.statusCode).toBe(200);
@@ -626,7 +626,7 @@ describe('Usage Routes', () => {
     const { app, deps } = await createApp();
     const res = await app.inject({
       method: 'GET',
-      url: '/usage/strategy/strat-0001?limit=5',
+      url: '/api/usage/strategy/strat-0001?limit=5',
       headers: AUTH_HEADER,
     });
     expect(res.statusCode).toBe(200);
@@ -639,11 +639,11 @@ describe('Usage Routes', () => {
 
 describe('Auth enforcement on all routes', () => {
   const routes = [
-    { method: 'GET' as const, url: '/strategies' },
-    { method: 'GET' as const, url: '/runs/run-0001' },
-    { method: 'GET' as const, url: '/keys' },
-    { method: 'GET' as const, url: '/credit-pool' },
-    { method: 'GET' as const, url: '/usage/key/key-hash-001' },
+    { method: 'GET' as const, url: '/api/strategies' },
+    { method: 'GET' as const, url: '/api/runs/run-0001' },
+    { method: 'GET' as const, url: '/api/keys' },
+    { method: 'GET' as const, url: '/api/credit-pool' },
+    { method: 'GET' as const, url: '/api/usage/key/key-hash-001' },
   ];
 
   for (const route of routes) {
@@ -671,7 +671,7 @@ describe('Boundary conditions', () => {
 
     const res = await app.inject({
       method: 'GET',
-      url: '/strategies',
+      url: '/api/strategies',
       headers: AUTH_HEADER,
     });
     expect(res.statusCode).toBe(200);
@@ -687,7 +687,7 @@ describe('Boundary conditions', () => {
 
     const res = await app.inject({
       method: 'GET',
-      url: '/runs/strategy/strat-no-runs',
+      url: '/api/runs/strategy/strat-no-runs',
       headers: AUTH_HEADER,
     });
     expect(res.statusCode).toBe(200);
@@ -703,7 +703,7 @@ describe('Boundary conditions', () => {
 
     const res = await app.inject({
       method: 'GET',
-      url: '/keys/strategy/strat-no-keys',
+      url: '/api/keys/strategy/strat-no-keys',
       headers: AUTH_HEADER,
     });
     expect(res.statusCode).toBe(200);
