@@ -1,0 +1,83 @@
+import type { FastifyInstance } from 'fastify';
+import type { RunService } from '../services/RunService.js';
+import type { StateMachine } from '../engine/StateMachine.js';
+
+export interface RunRouteDeps {
+  runService: RunService;
+  stateMachine: StateMachine;
+}
+
+export async function runRoutes(
+  app: FastifyInstance,
+  deps: RunRouteDeps,
+): Promise<void> {
+  // POST /runs — trigger a new run for a strategy
+  app.post('/runs', {
+    schema: {
+      body: {
+        type: 'object',
+        required: ['strategyId'],
+        properties: {
+          strategyId: { type: 'string' },
+        },
+      },
+    },
+    handler: async (request, reply) => {
+      const { strategyId } = request.body as { strategyId: string };
+
+      // Create the run
+      const run = deps.runService.create(strategyId);
+
+      // Execute the run via state machine
+      const executedRun = await deps.stateMachine.execute(run);
+      return stripRun(executedRun);
+    },
+  });
+
+  // GET /runs/:id — get a run by ID
+  app.get('/runs/:id', {
+    handler: async (request, reply) => {
+      const { id } = request.params as { id: string };
+      const run = deps.runService.getById(id);
+      if (!run) {
+        return reply.code(404).send({ error: 'Run not found', statusCode: 404 });
+      }
+      return stripRun(run);
+    },
+  });
+
+  // GET /runs/strategy/:strategyId — list runs for a strategy
+  app.get('/runs/strategy/:strategyId', {
+    handler: async (request) => {
+      const { strategyId } = request.params as { strategyId: string };
+      const runs = deps.runService.getByStrategyId(strategyId);
+      return runs.map(stripRun);
+    },
+  });
+
+  // POST /runs/:id/resume — resume a failed run
+  app.post('/runs/:id/resume', {
+    handler: async (request, reply) => {
+      const { id } = request.params as { id: string };
+      const run = deps.runService.getById(id);
+      if (!run) {
+        return reply.code(404).send({ error: 'Run not found', statusCode: 404 });
+      }
+      if (run.state !== 'FAILED') {
+        return reply.code(400).send({
+          error: `Cannot resume run in state ${run.state}. Only FAILED runs can be resumed.`,
+          statusCode: 400,
+        });
+      }
+      const resumedRun = await deps.stateMachine.resume(run);
+      return stripRun(resumedRun);
+    },
+  });
+}
+
+/**
+ * Strip sensitive or unnecessary fields from run responses.
+ */
+function stripRun<T>(run: T): T {
+  return run;
+}
