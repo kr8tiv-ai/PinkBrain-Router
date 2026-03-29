@@ -4,10 +4,14 @@ import { Database } from './services/Database.js';
 import { StrategyService } from './services/StrategyService.js';
 import { RunService } from './services/RunService.js';
 import { AuditService } from './services/AuditService.js';
+import { KeyManagerService } from './services/KeyManagerService.js';
+import { CreditPoolService } from './services/CreditPoolService.js';
+import { OpenRouterClient } from './clients/OpenRouterClient.js';
 import { ExecutionPolicy } from './engine/ExecutionPolicy.js';
 import { StateMachine } from './engine/StateMachine.js';
 import { createPhaseHandlerMap } from './engine/phases/index.js';
 import { getConfig } from './config/index.js';
+import type { Strategy } from './types/index.js';
 
 const logger = pino({ name: 'creditbrain-cli' });
 
@@ -232,6 +236,243 @@ program
       db.close();
     } catch (error) {
       logger.error({ error: (error as Error).message }, 'Failed to get status');
+      process.exit(1);
+    }
+  });
+
+// update-strategy command
+program
+  .command('update-strategy')
+  .description('Update an existing credit strategy')
+  .requiredOption('--id <strategyId>', 'Strategy ID to update')
+  .option('--distribution <mode>', 'Distribution mode')
+  .option('--top-n <number>', 'Number of top holders')
+  .option('--key-limit <usd>', 'Per-key spending limit in USD')
+  .option('--reserve <pct>', 'Credit pool reserve percentage')
+  .option('--threshold <sol>', 'Min SOL threshold to claim')
+  .option('--status <status>', 'Strategy status (ACTIVE | PAUSED)')
+  .action(async (opts) => {
+    try {
+      const config = getConfig();
+      const db = new Database({ dbPath: config.databasePath });
+      db.init();
+
+      const strategyService = new StrategyService(db.getDb());
+
+      const updates: Parameters<StrategyService['update']>[1] = {};
+
+      if (opts.distribution) {
+        updates.distributionMode = opts.distribution as Strategy['distribution'];
+      }
+      if (opts.topN) {
+        updates.distributionTopN = parseInt(opts.topN, 10);
+      }
+      if (opts.keyLimit) {
+        updates.keyConfig = {
+          defaultLimitUsd: parseFloat(opts.keyLimit),
+          limitReset: 'monthly',
+          expiryDays: 365,
+        };
+      }
+      if (opts.reserve) {
+        updates.creditPoolReservePct = parseFloat(opts.reserve);
+      }
+      if (opts.threshold) {
+        updates.minClaimThreshold = parseFloat(opts.threshold);
+      }
+      if (opts.status) {
+        const validStatuses = ['ACTIVE', 'PAUSED'];
+        if (!validStatuses.includes(opts.status)) {
+          logger.error(`--status must be one of: ${validStatuses.join(', ')}`);
+          process.exit(1);
+        }
+        updates.status = opts.status as 'ACTIVE' | 'PAUSED';
+      }
+
+      const strategy = strategyService.update(opts.id, updates);
+      if (!strategy) {
+        logger.error({ strategyId: opts.id }, 'Strategy not found');
+        process.exit(1);
+      }
+
+      logger.info({ strategyId: strategy.strategyId }, 'Strategy updated successfully');
+      console.log(`\n✅ Strategy updated:`);
+      console.log(`   ID:           ${strategy.strategyId}`);
+      console.log(`   Owner:        ${strategy.ownerWallet}`);
+      console.log(`   Status:       ${strategy.status}`);
+      console.log(`   Distribution: ${strategy.distribution}`);
+      console.log(`   Key Limit:    $${strategy.keyConfig.defaultLimitUsd}/key`);
+      console.log(`   Reserve:      ${strategy.creditPoolReservePct}%`);
+      console.log(`   Threshold:    ${strategy.minClaimThreshold} SOL\n`);
+
+      db.close();
+    } catch (error) {
+      logger.error({ error: (error as Error).message }, 'Failed to update strategy');
+      process.exit(1);
+    }
+  });
+
+// delete-strategy command
+program
+  .command('delete-strategy')
+  .description('Delete a credit strategy')
+  .requiredOption('--id <strategyId>', 'Strategy ID to delete')
+  .action(async (opts) => {
+    try {
+      const config = getConfig();
+      const db = new Database({ dbPath: config.databasePath });
+      db.init();
+
+      const strategyService = new StrategyService(db.getDb());
+      const deleted = strategyService.delete(opts.id);
+
+      if (!deleted) {
+        logger.error({ strategyId: opts.id }, 'Strategy not found');
+        process.exit(1);
+      }
+
+      logger.info({ strategyId: opts.id }, 'Strategy deleted successfully');
+      console.log(`\n✅ Strategy ${opts.id} deleted.\n`);
+
+      db.close();
+    } catch (error) {
+      logger.error({ error: (error as Error).message }, 'Failed to delete strategy');
+      process.exit(1);
+    }
+  });
+
+// list-keys command
+program
+  .command('list-keys')
+  .description('List API keys from OpenRouter or keys for a strategy')
+  .option('--strategy <id>', 'List keys for a specific strategy')
+  .action(async (opts) => {
+    try {
+      const config = getConfig();
+      const db = new Database({ dbPath: config.databasePath });
+      db.init();
+
+      if (opts.strategy) {
+        const keyManagerService = new KeyManagerService({
+          openRouterClient: new OpenRouterClient(config.openrouterManagementKey),
+          db: db.getDb(),
+        });
+        const keys = keyManagerService.getKeysByStrategy(opts.strategy);
+        if (keys.length === 0) {
+          console.log(`\nNo keys found for strategy ${opts.strategy}.\n`);
+        } else {
+          console.log(`\n🔑 Keys for strategy ${opts.strategy} (${keys.length}):\n`);
+          console.log('  Hash                             | Wallet                          | Limit   | Usage   | Status');
+          console.log('  '.padEnd(33, '-') + '|' + ' '.padEnd(33, '-') + '|' + '--------|---------|--------');
+          for (const k of keys) {
+            const hash = k.openrouterKeyHash.length > 32
+              ? k.openrouterKeyHash.slice(0, 32) + '...'
+              : k.openrouterKeyHash.padEnd(32);
+            const wallet = k.holderWallet.length > 32
+              ? k.holderWallet.slice(0, 32) + '...'
+              : k.holderWallet.padEnd(32);
+            console.log(`  ${hash} | ${wallet} | $${String(k.spendingLimitUsd).padEnd(6)} | $${String(k.currentUsageUsd).padEnd(6)} | ${k.status}`);
+          }
+          console.log('');
+        }
+      } else {
+        const orClient = new OpenRouterClient(config.openrouterManagementKey);
+        const keys = await orClient.listKeys();
+        if (keys.length === 0) {
+          console.log('\nNo keys found on OpenRouter.\n');
+        } else {
+          console.log(`\n🔑 OpenRouter Keys (${keys.length}):\n`);
+          console.log('  Hash                             | Name                            | Limit   | Usage   | Remaining | Status');
+          console.log('  '.padEnd(33, '-') + '|' + ' '.padEnd(33, '-') + '|' + '--------|---------|-----------|--------');
+          for (const k of keys) {
+            const hash = k.hash.length > 32 ? k.hash.slice(0, 32) + '...' : k.hash.padEnd(32);
+            const name = k.name.length > 32 ? k.name.slice(0, 32) + '...' : k.name.padEnd(32);
+            console.log(`  ${hash} | ${name} | $${String(k.limit).padEnd(6)} | $${String(k.usage).padEnd(6)} | $${String(k.limit_remaining).padEnd(8)} | ${k.disabled ? 'DISABLED' : 'ACTIVE'}`);
+          }
+          console.log('');
+        }
+      }
+
+      db.close();
+    } catch (error) {
+      logger.error({ error: (error as Error).message }, 'Failed to list keys');
+      process.exit(1);
+    }
+  });
+
+// pool-status command
+program
+  .command('pool-status')
+  .description('Show credit pool status')
+  .action(async () => {
+    try {
+      const config = getConfig();
+      const db = new Database({ dbPath: config.databasePath });
+      db.init();
+
+      const orClient = new OpenRouterClient(config.openrouterManagementKey);
+      const creditPoolService = new CreditPoolService(orClient, db.getDb());
+      const status = await creditPoolService.getStatus();
+
+      console.log('\n💰 Credit Pool Status:\n');
+      console.log(`   Balance:    $${status.balance.toFixed(2)}`);
+      console.log(`   Allocated:  $${status.allocated.toFixed(2)}`);
+      console.log(`   Available:  $${status.available.toFixed(2)}`);
+      console.log(`   Reserve:    $${status.reserve.toFixed(2)}`);
+      console.log(`   Runway:     ${status.runway}\n`);
+
+      db.close();
+    } catch (error) {
+      logger.error({ error: (error as Error).message }, 'Failed to get pool status');
+      process.exit(1);
+    }
+  });
+
+// health command
+program
+  .command('health')
+  .description('Check dependency health (OpenRouter API, Database)')
+  .action(async () => {
+    try {
+      const config = getConfig();
+      const db = new Database({ dbPath: config.databasePath });
+      db.init();
+
+      console.log('\n🏥 Health Check:\n');
+
+      // Database check
+      let dbOk = true;
+      try {
+        db.getDb().prepare('SELECT 1').get();
+      } catch (err) {
+        dbOk = false;
+        logger.error({ err: (err as Error).message }, 'Database unreachable');
+      }
+
+      // OpenRouter check
+      let orOk = true;
+      let orError = '';
+      try {
+        const orClient = new OpenRouterClient(config.openrouterManagementKey);
+        await orClient.getAccountCredits();
+      } catch (err) {
+        orOk = false;
+        orError = (err as Error).message;
+      }
+
+      const dbStatus = dbOk ? '✅ connected' : '❌ error';
+      const orStatus = orOk ? '✅ connected' : `❌ unreachable (${orError})`;
+
+      console.log(`   OpenRouter: ${orStatus}`);
+      console.log(`   Database:   ${dbStatus}`);
+
+      const overallOk = dbOk && orOk;
+      console.log(`\n   Overall:    ${overallOk ? '✅ all healthy' : '⚠️  issues detected'}\n`);
+
+      db.close();
+      if (!overallOk) process.exit(1);
+    } catch (error) {
+      logger.error({ error: (error as Error).message }, 'Health check failed');
       process.exit(1);
     }
   });
