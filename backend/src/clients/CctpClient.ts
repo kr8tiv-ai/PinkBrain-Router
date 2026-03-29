@@ -1,6 +1,6 @@
 import pino from 'pino';
-import { createPublicClient, createWalletClient, http, type Address, type Hash } from 'viem';
-import { base, defineChain } from 'viem/chains';
+import { createPublicClient, createWalletClient, http, defineChain, type Address, type Hash } from 'viem';
+import { base } from 'viem/chains';
 import { privateKeyToAccount } from 'viem/accounts';
 
 const logger = pino({ name: 'CctpClient' });
@@ -89,8 +89,10 @@ export interface BridgeResult {
 }
 
 export class CctpClient {
-  private readonly walletClient: ReturnType<typeof createWalletClient>;
-  private readonly publicClient: ReturnType<typeof createPublicClient>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private readonly walletClient: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private readonly publicClient: any;
   private readonly walletAddress: Address;
   private readonly chain: ReturnType<typeof defineChain>;
 

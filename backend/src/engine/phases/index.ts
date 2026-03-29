@@ -2,13 +2,12 @@ import type { RunState, PhaseResult, CreditRun } from '../../types/index.js';
 import type { PhaseHandler } from '../StateMachine.js';
 import { claimPhase } from './claim.js';
 import { swapPhase } from './swap.js';
-import { createBridgePhase } from './bridge.js';
-import { createFundPhase } from './fund.js';
+import { createBridgePhase, type BridgePhaseDeps } from './bridge.js';
+import { createFundPhase, type FundPhaseDeps } from './fund.js';
 import { allocatePhase } from './allocate.js';
 import { provisionPhase } from './provision.js';
 
-export type BridgePhaseDeps = import('./bridge.js').BridgePhaseDeps;
-export type FundPhaseDeps = import('./fund.js').FundPhaseDeps;
+export type { BridgePhaseDeps, FundPhaseDeps };
 
 /**
  * Create phase handlers with injected dependencies.
@@ -84,7 +83,7 @@ async function defaultFundPhase(run: CreditRun): Promise<PhaseResult> {
 
 export { claimPhase } from './claim.js';
 export { swapPhase } from './swap.js';
-export { createBridgePhase, type BridgePhaseDeps } from './bridge.js';
-export { createFundPhase, type FundPhaseDeps } from './fund.js';
+export { createBridgePhase } from './bridge.js';
+export { createFundPhase } from './fund.js';
 export { allocatePhase } from './allocate.js';
 export { provisionPhase } from './provision.js';
