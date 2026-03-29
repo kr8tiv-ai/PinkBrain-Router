@@ -60,6 +60,8 @@ function createDeps(overrides?: Partial<DatabaseConnection & OpenRouterClient>) 
   return {
     port: 0,
     apiAuthToken: TEST_TOKEN,
+    logLevel: 'info',
+    nodeEnv: 'test',
     db: overrides ? { ...createMockDb(), ...overrides } : createMockDb(),
     openRouterClient: overrides
       ? ({ ...createMockOpenRouterClient(), ...overrides } as unknown as OpenRouterClient)
@@ -426,6 +428,94 @@ describe('Error handler', () => {
     // In development, message should be descriptive
     expect(body.message).not.toBe('Internal server error');
 
+    await app.close();
+  });
+});
+
+// ─── Request logging tests ──────────────────────────────────────
+
+describe('Request logging', () => {
+  it('registers onRequest and onResponse hooks that do not break the request pipeline', async () => {
+    const deps = createDeps();
+    const app = await buildApp(deps);
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/health/live',
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().status).toBe('ok');
+    await app.close();
+  });
+
+  it('logs structured access info on every response', async () => {
+    const deps = createDeps();
+    const app = await buildApp(deps);
+
+    // Fastify wraps the pino logger, so use spyOn to intercept calls
+    const infoSpy = vi.spyOn(app.log, 'info');
+
+    await app.inject({
+      method: 'GET',
+      url: '/health/live',
+    });
+
+    // onResponse hook should have logged a structured access entry
+    expect(infoSpy).toHaveBeenCalled();
+    const accessLogCall = infoSpy.mock.calls.find(
+      (call) =>
+        call[0] != null &&
+        typeof call[0] === 'object' &&
+        'method' in call[0] &&
+        'url' in call[0] &&
+        'statusCode' in call[0] &&
+        'responseTime' in call[0],
+    );
+    expect(accessLogCall).toBeDefined();
+    expect(accessLogCall![0].method).toBe('GET');
+    expect(accessLogCall![0].url).toBe('/health/live');
+    expect(typeof accessLogCall![0].responseTime).toBe('number');
+
+    infoSpy.mockRestore();
+    await app.close();
+  });
+
+  it('includes requestId in log entries', async () => {
+    const deps = createDeps();
+    const app = await buildApp(deps);
+
+    const infoSpy = vi.spyOn(app.log, 'info');
+
+    await app.inject({
+      method: 'GET',
+      url: '/health/live',
+    });
+
+    const accessLogCall = infoSpy.mock.calls.find(
+      (call) =>
+        call[0] != null &&
+        typeof call[0] === 'object' &&
+        'requestId' in call[0],
+    );
+    expect(accessLogCall).toBeDefined();
+    expect(typeof accessLogCall![0].requestId).toBe('string');
+
+    infoSpy.mockRestore();
+    await app.close();
+  });
+
+  it('does not throw when logging an error response', async () => {
+    const deps = createDeps();
+    const app = await buildApp(deps);
+
+    // Request a non-existent route — should 404 without throwing from the logging hook
+    const response = await app.inject({
+      method: 'GET',
+      url: '/does-not-exist',
+    });
+
+    expect(response.statusCode).toBe(404);
     await app.close();
   });
 });
