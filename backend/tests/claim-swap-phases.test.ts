@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createClaimPhase, defaultClaimPhase } from '../src/engine/phases/claim.js';
-import { swapPhase } from '../src/engine/phases/swap.js';
+import { defaultSwapPhase } from '../src/engine/phases/swap.js';
 import type { CreditRun, ClaimablePosition, ClaimTransaction } from '../src/types/index.js';
 
 vi.mock('pino', () => ({
@@ -422,12 +422,12 @@ describe('createClaimPhase', () => {
   });
 });
 
-// ─── swapPhase (unchanged) ────────────────────────────────────
+// ─── defaultSwapPhase (unchanged) ────────────────────────────────────
 
-describe('swapPhase', () => {
+describe('defaultSwapPhase', () => {
   it('returns success with dry-run swapped USDC', async () => {
     const runWithClaim: CreditRun = { ...mockRun, claimedSol: 10 };
-    const result = await swapPhase(runWithClaim);
+    const result = await defaultSwapPhase(runWithClaim);
 
     expect(result.success).toBe(true);
     expect(result.data).toEqual({
@@ -437,7 +437,7 @@ describe('swapPhase', () => {
   });
 
   it('returns success even without claimed SOL on the run', async () => {
-    const result = await swapPhase(mockRun);
+    const result = await defaultSwapPhase(mockRun);
 
     expect(result.success).toBe(true);
     expect(result.data.swappedUsdc).toBe(300);

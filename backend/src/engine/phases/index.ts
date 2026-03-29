@@ -1,27 +1,29 @@
 import type { RunState, PhaseResult, CreditRun } from '../../types/index.js';
 import type { PhaseHandler } from '../StateMachine.js';
 import { createClaimPhase, defaultClaimPhase, type ClaimPhaseDeps } from './claim.js';
-import { swapPhase } from './swap.js';
+import { createSwapPhase, defaultSwapPhase, type SwapPhaseDeps } from './swap.js';
 import { createBridgePhase, type BridgePhaseDeps } from './bridge.js';
 import { createFundPhase, type FundPhaseDeps } from './fund.js';
 import { createAllocatePhase, type AllocatePhaseDeps, allocatePhase as defaultAllocatePhase } from './allocate.js';
 import { createProvisionPhase, type ProvisionPhaseDeps, provisionPhase as defaultProvisionPhase } from './provision.js';
 
-export type { ClaimPhaseDeps, BridgePhaseDeps, FundPhaseDeps, AllocatePhaseDeps, ProvisionPhaseDeps };
+export type { ClaimPhaseDeps, SwapPhaseDeps, BridgePhaseDeps, FundPhaseDeps, AllocatePhaseDeps, ProvisionPhaseDeps };
 
 /**
  * Create phase handlers with injected dependencies.
- * Bridge, fund, allocate, and provision phases require service dependencies;
- * claim and swap are stub implementations.
+ * Claim and swap phases use factory injection; bridge, fund, allocate, and provision
+ * fall back to default stubs when no deps are provided.
  */
 export function createPhaseHandlerMap(deps?: {
   claim?: ClaimPhaseDeps;
+  swap?: SwapPhaseDeps;
   bridge?: BridgePhaseDeps;
   fund?: FundPhaseDeps;
   allocate?: AllocatePhaseDeps;
   provision?: ProvisionPhaseDeps;
 }): Map<RunState, PhaseHandler> {
   const claimDeps = deps?.claim;
+  const swapDeps = deps?.swap;
   const bridgeDeps = deps?.bridge;
   const fundDeps = deps?.fund;
   const allocateDeps = deps?.allocate;
@@ -30,6 +32,10 @@ export function createPhaseHandlerMap(deps?: {
   const claimHandler = claimDeps
     ? createClaimPhase(claimDeps)
     : defaultClaimPhase;
+
+  const swapHandler = swapDeps
+    ? createSwapPhase(swapDeps)
+    : defaultSwapPhase;
 
   const bridgeHandler = bridgeDeps
     ? createBridgePhase(bridgeDeps)
@@ -49,7 +55,7 @@ export function createPhaseHandlerMap(deps?: {
 
   return new Map<RunState, (run: CreditRun) => Promise<PhaseResult>>([
     ['CLAIMING', claimHandler],
-    ['SWAPPING', swapPhase],
+    ['SWAPPING', swapHandler],
     ['BRIDGING', bridgeHandler],
     ['FUNDING', fundHandler],
     ['ALLOCATING', allocateHandler],
@@ -100,7 +106,7 @@ async function defaultFundPhase(run: CreditRun): Promise<PhaseResult> {
 }
 
 export { defaultClaimPhase } from './claim.js';
-export { swapPhase } from './swap.js';
+export { createSwapPhase, defaultSwapPhase } from './swap.js';
 export { createBridgePhase } from './bridge.js';
 export { createFundPhase } from './fund.js';
 export { createAllocatePhase, allocatePhase } from './allocate.js';

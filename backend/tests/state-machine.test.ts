@@ -449,7 +449,7 @@ describe('StateMachine', () => {
 
     it('stops on handler throwing an error', async () => {
       const handlers = createAllHandlers({
-        FUNDING: vi.fn().mockRejectedValue(new Error('Network timeout')),
+        FUNDING: vi.fn().mockRejectedValue(new Error('Insufficient funds for gas')),
       });
       const machine = createMachine(runDb, auditDb, undefined, handlers);
       const run = createRun({ state: 'PENDING' });
@@ -472,7 +472,7 @@ describe('StateMachine', () => {
       expect(result.state).toBe('FAILED');
       expect(result.error).not.toBeNull();
       expect(result.error!.code).toBe('PHASE_ERROR');
-      expect(result.error!.detail).toContain('Network timeout');
+      expect(result.error!.detail).toContain('Insufficient funds for gas');
     });
 
     it('skips already-completed phases (resume scenario)', async () => {
