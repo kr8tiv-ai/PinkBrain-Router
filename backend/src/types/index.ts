@@ -209,6 +209,8 @@ export interface UserKey {
   openrouterKeyHash: string;
   spendingLimitUsd: number;
   currentUsageUsd: number;
+  totalAllocatedUsd: number;
+  lastSyncedAt: string | null;
   status: 'ACTIVE' | 'EXHAUSTED' | 'EXPIRED' | 'REVOKED';
   createdAt: string;
   updatedAt: string;

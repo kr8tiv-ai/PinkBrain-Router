@@ -140,12 +140,33 @@ export class KeyManagerService {
         `SELECT key_id as keyId, strategy_id as strategyId, holder_wallet as holderWallet,
                 openrouter_key_hash as openrouterKeyHash,
                 spending_limit_usd as spendingLimitUsd, current_usage_usd as currentUsageUsd,
+                total_allocated_usd as totalAllocatedUsd, last_synced_at as lastSyncedAt,
                 status, created_at as createdAt, updated_at as updatedAt, expires_at as expiresAt
          FROM user_keys
          WHERE holder_wallet = ? AND strategy_id = ? AND status = 'ACTIVE'
          ORDER BY created_at DESC LIMIT 1`,
       )
       .get<UserKey>(holderWallet, strategyId);
+
+    return row ?? null;
+  }
+
+  /**
+   * Get the active key for a holder across all strategies.
+   */
+  getActiveKeyByWallet(holderWallet: string): UserKey | null {
+    const row = this.deps.db
+      .prepare(
+        `SELECT key_id as keyId, strategy_id as strategyId, holder_wallet as holderWallet,
+                openrouter_key_hash as openrouterKeyHash,
+                spending_limit_usd as spendingLimitUsd, current_usage_usd as currentUsageUsd,
+                total_allocated_usd as totalAllocatedUsd, last_synced_at as lastSyncedAt,
+                status, created_at as createdAt, updated_at as updatedAt, expires_at as expiresAt
+         FROM user_keys
+         WHERE holder_wallet = ? AND status = 'ACTIVE'
+         ORDER BY created_at DESC LIMIT 1`,
+      )
+      .get<UserKey>(holderWallet);
 
     return row ?? null;
   }
@@ -159,6 +180,7 @@ export class KeyManagerService {
         `SELECT key_id as keyId, strategy_id as strategyId, holder_wallet as holderWallet,
                 openrouter_key_hash as openrouterKeyHash,
                 spending_limit_usd as spendingLimitUsd, current_usage_usd as currentUsageUsd,
+                total_allocated_usd as totalAllocatedUsd, last_synced_at as lastSyncedAt,
                 status, created_at as createdAt, updated_at as updatedAt, expires_at as expiresAt
          FROM user_keys
          WHERE strategy_id = ?
@@ -245,8 +267,8 @@ export class KeyManagerService {
     this.deps.db
       .prepare(
         `INSERT INTO user_keys (key_id, strategy_id, holder_wallet, openrouter_key_hash,
-         spending_limit_usd, current_usage_usd, status, created_at, updated_at, expires_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         spending_limit_usd, current_usage_usd, total_allocated_usd, status, created_at, updated_at, expires_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
       .run(
         data.keyId,
@@ -254,6 +276,7 @@ export class KeyManagerService {
         data.holderWallet,
         data.openrouterKeyHash,
         data.spendingLimitUsd,
+        0,
         0,
         data.status,
         now,

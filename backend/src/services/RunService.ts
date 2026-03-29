@@ -208,6 +208,46 @@ export class RunService {
     return this.getById(runId);
   }
 
+  getAggregateStats(): {
+    totalRuns: number;
+    completedRuns: number;
+    failedRuns: number;
+    totalClaimedSol: number;
+    totalSwappedUsdc: number;
+    totalAllocatedUsd: number;
+    totalKeysProvisioned: number;
+    totalKeysUpdated: number;
+  } {
+    const getTotal = this.db.prepare('SELECT COUNT(*) as count FROM runs');
+    const getCompleted = this.db.prepare("SELECT COUNT(*) as count FROM runs WHERE state = 'COMPLETE'");
+    const getFailed = this.db.prepare("SELECT COUNT(*) as count FROM runs WHERE state = 'FAILED'");
+    const getClaimedSol = this.db.prepare('SELECT COALESCE(SUM(claimed_sol), 0) as total FROM runs');
+    const getSwappedUsdc = this.db.prepare('SELECT COALESCE(SUM(swapped_usdc), 0) as total FROM runs');
+    const getAllocatedUsd = this.db.prepare('SELECT COALESCE(SUM(allocated_usd), 0) as total FROM runs');
+    const getKeysProvisioned = this.db.prepare('SELECT COALESCE(SUM(keys_provisioned), 0) as total FROM runs');
+    const getKeysUpdated = this.db.prepare('SELECT COALESCE(SUM(keys_updated), 0) as total FROM runs');
+
+    const total = getTotal.get<{ count: number }>();
+    const completed = getCompleted.get<{ count: number }>();
+    const failed = getFailed.get<{ count: number }>();
+    const claimedSol = getClaimedSol.get<{ total: number }>();
+    const swappedUsdc = getSwappedUsdc.get<{ total: number }>();
+    const allocatedUsd = getAllocatedUsd.get<{ total: number }>();
+    const keysProvisioned = getKeysProvisioned.get<{ total: number }>();
+    const keysUpdated = getKeysUpdated.get<{ total: number }>();
+
+    return {
+      totalRuns: total?.count ?? 0,
+      completedRuns: completed?.count ?? 0,
+      failedRuns: failed?.count ?? 0,
+      totalClaimedSol: claimedSol?.total ?? 0,
+      totalSwappedUsdc: swappedUsdc?.total ?? 0,
+      totalAllocatedUsd: allocatedUsd?.total ?? 0,
+      totalKeysProvisioned: keysProvisioned?.total ?? 0,
+      totalKeysUpdated: keysUpdated?.total ?? 0,
+    };
+  }
+
   private toRun(row: RawRunRow): CreditRun {
     return {
       runId: row.run_id,

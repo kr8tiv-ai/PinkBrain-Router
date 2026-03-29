@@ -167,6 +167,22 @@ export class CreditPoolService {
     this.cacheExpiry = 0;
   }
 
+  /**
+   * Get recent pool allocation history.
+   */
+  getPoolHistory(limit = 100): Array<{ id: string; runId: string; amountUsd: number; createdAt: string }> {
+    const rows = this.db
+      .prepare(
+        `SELECT id, run_id as runId, amount_usd as amountUsd, created_at as createdAt
+         FROM credit_pool_allocations
+         ORDER BY created_at DESC
+         LIMIT ?`,
+      )
+      .all<{ id: string; runId: string; amountUsd: number; createdAt: string }>(limit);
+
+    return rows;
+  }
+
   /** Update the reserve percentage. */
   setReservePct(pct: number): void {
     if (pct < 0 || pct > 50) {
