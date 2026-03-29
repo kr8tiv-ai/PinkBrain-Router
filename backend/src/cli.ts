@@ -8,8 +8,10 @@ import { RunService } from './services/RunService.js';
 import { AuditService } from './services/AuditService.js';
 import { KeyManagerService } from './services/KeyManagerService.js';
 import { CreditPoolService } from './services/CreditPoolService.js';
+import { DistributionService } from './services/DistributionService.js';
 import { OpenRouterClient } from './clients/OpenRouterClient.js';
 import { BagsClient } from './clients/BagsClient.js';
+import { HeliusClient } from './clients/HeliusClient.js';
 import { createSignAndSendClaim } from './engine/signAndSendClaim.js';
 import { createSignAndSendSwap } from './engine/signAndSendSwap.js';
 import { ExecutionPolicy } from './engine/ExecutionPolicy.js';
@@ -132,7 +134,25 @@ program
       const strategyService = new StrategyService(dbConn);
       const runService = new RunService(dbConn);
       const auditService = new AuditService(dbConn);
-      const executionPolicy = new ExecutionPolicy(config);
+      const executionPolicy = new ExecutionPolicy(config, dbConn);
+
+      // OpenRouter client (shared by credit pool and key manager)
+      const orClient = new OpenRouterClient(config.openrouterManagementKey);
+
+      // Credit pool for allocate phase
+      const creditPoolService = new CreditPoolService(orClient, dbConn, config.creditPoolReservePct);
+
+      // Helius client for holder resolution in allocate phase
+      const heliusClient = new HeliusClient({
+        apiKey: config.heliusApiKey,
+        rpcUrl: config.heliusRpcUrl,
+      });
+
+      // Distribution service for allocate phase
+      const distributionService = new DistributionService({
+        db: dbConn,
+        creditPoolService,
+      });
 
       // Claim phase dependencies
       const connection = new Connection(config.heliusRpcUrl);
@@ -163,6 +183,12 @@ program
           strategyService,
           signAndSendSwap,
           dryRun: config.dryRun,
+        },
+        allocate: {
+          distributionService,
+          strategyService,
+          resolveHolders: (strategy) =>
+            heliusClient.getTokenHolders(strategy.distributionToken),
         },
       });
       const stateMachine = new StateMachine({
