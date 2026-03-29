@@ -10,6 +10,8 @@ import { CreditPoolService } from './services/CreditPoolService.js';
 import { UsageTrackingService } from './services/UsageTrackingService.js';
 import { OpenRouterClient } from './clients/OpenRouterClient.js';
 import { BagsClient } from './clients/BagsClient.js';
+import { HeliusClient } from './clients/HeliusClient.js';
+import { DistributionService } from './services/DistributionService.js';
 import { createSignAndSendClaim } from './engine/signAndSendClaim.js';
 import { createSignAndSendSwap } from './engine/signAndSendSwap.js';
 import { ExecutionPolicy } from './engine/ExecutionPolicy.js';
@@ -49,6 +51,18 @@ async function main() {
   // Engine
   const runLock = new RunLock();
 
+  // Helius client for holder resolution
+  const heliusClient = new HeliusClient({
+    apiKey: config.heliusApiKey,
+    rpcUrl: config.heliusRpcUrl,
+  });
+
+  // Distribution service for allocate phase
+  const distributionService = new DistributionService({
+    db: dbConn,
+    creditPoolService,
+  });
+
   // Claim phase dependencies: Solana connection, signer keypair, Bags.fm client
   const connection = new Connection(config.heliusRpcUrl);
   const claimKeypair = config.signerPrivateKey
@@ -80,6 +94,12 @@ async function main() {
       strategyService,
       signAndSendSwap,
       dryRun: config.dryRun,
+    },
+    allocate: {
+      distributionService,
+      strategyService,
+      resolveHolders: (strategy) =>
+        heliusClient.getTokenHolders(strategy.distributionToken),
     },
   });
   const stateMachine = new StateMachine({
