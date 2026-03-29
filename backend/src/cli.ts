@@ -1,5 +1,7 @@
 import { Command } from 'commander';
 import pino from 'pino';
+import { Connection, Keypair } from '@solana/web3.js';
+import bs58 from 'bs58';
 import { Database } from './services/Database.js';
 import { StrategyService } from './services/StrategyService.js';
 import { RunService } from './services/RunService.js';
@@ -7,6 +9,8 @@ import { AuditService } from './services/AuditService.js';
 import { KeyManagerService } from './services/KeyManagerService.js';
 import { CreditPoolService } from './services/CreditPoolService.js';
 import { OpenRouterClient } from './clients/OpenRouterClient.js';
+import { BagsClient } from './clients/BagsClient.js';
+import { createSignAndSendClaim } from './engine/signAndSendClaim.js';
 import { ExecutionPolicy } from './engine/ExecutionPolicy.js';
 import { StateMachine } from './engine/StateMachine.js';
 import { createPhaseHandlerMap } from './engine/phases/index.js';
@@ -128,7 +132,28 @@ program
       const runService = new RunService(dbConn);
       const auditService = new AuditService(dbConn);
       const executionPolicy = new ExecutionPolicy(config);
-      const phaseHandlers = createPhaseHandlerMap();
+
+      // Claim phase dependencies
+      const connection = new Connection(config.heliusRpcUrl);
+      const claimKeypair = config.signerPrivateKey
+        ? Keypair.fromSecretKey(bs58.decode(config.signerPrivateKey))
+        : null;
+      const bagsClient = new BagsClient({
+        apiKey: config.bagsApiKey,
+        baseUrl: config.bagsApiBaseUrl,
+      });
+      const signAndSendClaim = claimKeypair
+        ? createSignAndSendClaim(connection, claimKeypair)
+        : () => Promise.reject(new Error('No signer configured — set SIGNER_PRIVATE_KEY for live claiming'));
+
+      const phaseHandlers = createPhaseHandlerMap({
+        claim: {
+          bagsClient,
+          strategyService,
+          signAndSendClaim,
+          dryRun: config.dryRun,
+        },
+      });
       const stateMachine = new StateMachine({
         auditService,
         runService,

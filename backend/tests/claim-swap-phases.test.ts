@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { claimPhase } from '../src/engine/phases/claim.js';
+import { defaultClaimPhase } from '../src/engine/phases/claim.js';
 import { swapPhase } from '../src/engine/phases/swap.js';
 import type { CreditRun } from '../src/types/index.js';
 
@@ -24,9 +24,9 @@ const mockRun: CreditRun = {
   error: null,
 };
 
-describe('claimPhase', () => {
+describe('defaultClaimPhase', () => {
   it('returns success with dry-run claimed SOL', async () => {
-    const result = await claimPhase(mockRun);
+    const result = await defaultClaimPhase(mockRun);
 
     expect(result.success).toBe(true);
     expect(result.data).toEqual({
@@ -42,7 +42,7 @@ describe('claimPhase', () => {
       error: { code: 'TEST', detail: 'test', failedState: 'CLAIMING' },
     };
 
-    const result = await claimPhase(failedRun);
+    const result = await defaultClaimPhase(failedRun);
     expect(result.success).toBe(true);
   });
 });
