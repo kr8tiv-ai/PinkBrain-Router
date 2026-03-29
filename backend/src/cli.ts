@@ -11,6 +11,7 @@ import { CreditPoolService } from './services/CreditPoolService.js';
 import { OpenRouterClient } from './clients/OpenRouterClient.js';
 import { BagsClient } from './clients/BagsClient.js';
 import { createSignAndSendClaim } from './engine/signAndSendClaim.js';
+import { createSignAndSendSwap } from './engine/signAndSendSwap.js';
 import { ExecutionPolicy } from './engine/ExecutionPolicy.js';
 import { StateMachine } from './engine/StateMachine.js';
 import { createPhaseHandlerMap } from './engine/phases/index.js';
@@ -146,11 +147,21 @@ program
         ? createSignAndSendClaim(connection, claimKeypair)
         : () => Promise.reject(new Error('No signer configured — set SIGNER_PRIVATE_KEY for live claiming'));
 
+      const signAndSendSwap = claimKeypair
+        ? createSignAndSendSwap(connection, claimKeypair)
+        : () => Promise.reject(new Error('No signer configured — set SIGNER_PRIVATE_KEY for live swapping'));
+
       const phaseHandlers = createPhaseHandlerMap({
         claim: {
           bagsClient,
           strategyService,
           signAndSendClaim,
+          dryRun: config.dryRun,
+        },
+        swap: {
+          bagsClient,
+          strategyService,
+          signAndSendSwap,
           dryRun: config.dryRun,
         },
       });
