@@ -194,4 +194,155 @@ describe('BagsClient', () => {
       ).rejects.toThrow('Price impact');
     });
   });
+
+  describe('getClaimTransactions', () => {
+    it('returns claim transactions for a position', async () => {
+      const mockTx = [
+        { transaction: 'base64-tx-1', computeUnits: 150000 },
+      ];
+      mockPost.mockResolvedValue({ data: mockTx, headers: {} });
+
+      const client = new BagsClient({
+        apiKey: 'test-key',
+        baseUrl: 'https://test-api.bags.fm/api/v1',
+      });
+
+      const result = await client.getClaimTransactions('feeClaimer123', mockPosition);
+
+      expect(result).toHaveLength(1);
+      expect(result[0].transaction).toBe('base64-tx-1');
+      expect(mockPost).toHaveBeenCalledWith(
+        '/fees/claim/transactions',
+        expect.objectContaining({
+          feeClaimer: 'feeClaimer123',
+        }),
+        expect.any(Object),
+      );
+    });
+
+    it('uses high priority by default', async () => {
+      mockPost.mockResolvedValue({ data: [], headers: {} });
+      const client = new BagsClient({
+        apiKey: 'test-key',
+        baseUrl: 'https://test-api.bags.fm/api/v1',
+      });
+
+      await client.getClaimTransactions('claimer', mockPosition);
+
+      expect(mockPost).toHaveBeenCalledWith(
+        '/fees/claim/transactions',
+        expect.anything(),
+        expect.objectContaining({
+          headers: { 'X-Priority': 'high' },
+        }),
+      );
+    });
+
+    it('respects low priority option', async () => {
+      mockPost.mockResolvedValue({ data: [], headers: {} });
+      const client = new BagsClient({
+        apiKey: 'test-key',
+        baseUrl: 'https://test-api.bags.fm/api/v1',
+      });
+
+      await client.getClaimTransactions('claimer', mockPosition, { priority: 'low' });
+
+      expect(mockPost).toHaveBeenCalledWith(
+        '/fees/claim/transactions',
+        expect.anything(),
+        expect.objectContaining({
+          headers: { 'X-Priority': 'low' },
+        }),
+      );
+    });
+  });
+
+  describe('executeWithRetry (via prepareSwap)', () => {
+    it('retries on 429 rate limit errors', async () => {
+      // First two calls get 429, third succeeds
+      mockGet
+        .mockRejectedValueOnce({ response: { status: 429 }, message: 'Too Many Requests' })
+        .mockRejectedValueOnce({ response: { status: 429 }, message: 'Too Many Requests' })
+        .mockResolvedValueOnce({ data: mockQuote, headers: { 'x-ratelimit-remaining': '50' } });
+
+      // Set rate limit reset time in the past so backoff is minimal
+      const client = new BagsClient({
+        apiKey: 'test-key',
+        baseUrl: 'https://test-api.bags.fm/api/v1',
+      });
+      // Manually set rate limit info so backoff uses short wait
+      const rateInfo = client.getRateLimitStatus();
+      // Override internal state
+      (client as unknown as { rateLimitInfo: { resetAt: number } }).rateLimitInfo.resetAt = Date.now() - 1000;
+
+      const result = await client.getTradeQuote({
+        inputMint: 'So11111111111111111111111111111111111111112',
+        outputMint: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
+        amount: 5000000000,
+      });
+
+      expect(result.requestId).toBe('req-123');
+      expect(mockGet).toHaveBeenCalledTimes(3);
+    });
+
+    it('does not retry on 4xx client errors (non-429)', async () => {
+      mockGet.mockRejectedValue({ response: { status: 401 }, message: 'Unauthorized' });
+
+      const client = new BagsClient({
+        apiKey: 'test-key',
+        baseUrl: 'https://test-api.bags.fm/api/v1',
+      });
+
+      await expect(
+        client.getTradeQuote({
+          inputMint: 'So11111111111111111111111111111111111111112',
+          outputMint: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
+          amount: 5000000000,
+        }),
+      ).rejects.toEqual(expect.objectContaining({ response: { status: 401 } }));
+
+      // Should only be called once (no retry for 4xx)
+      expect(mockGet).toHaveBeenCalledTimes(1);
+    });
+
+    it('retries on 5xx server errors', async () => {
+      mockGet
+        .mockRejectedValueOnce({ response: { status: 500 }, message: 'Internal Server Error' })
+        .mockResolvedValueOnce({ data: mockQuote, headers: {} });
+
+      const client = new BagsClient({
+        apiKey: 'test-key',
+        baseUrl: 'https://test-api.bags.fm/api/v1',
+      });
+
+      const result = await client.getTradeQuote({
+        inputMint: 'So11111111111111111111111111111111111111112',
+        outputMint: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
+        amount: 5000000000,
+      });
+
+      expect(result.requestId).toBe('req-123');
+      expect(mockGet).toHaveBeenCalledTimes(2);
+    });
+
+    it('throws after max retries exhausted', async () => {
+      mockGet.mockRejectedValue({ response: { status: 500 }, message: 'Server Error' });
+
+      const client = new BagsClient({
+        apiKey: 'test-key',
+        baseUrl: 'https://test-api.bags.fm/api/v1',
+      });
+
+      await expect(
+        client.getTradeQuote({
+          inputMint: 'So11111111111111111111111111111111111111112',
+          outputMint: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
+          amount: 5000000000,
+        }),
+      ).rejects.toEqual(expect.objectContaining({ response: { status: 500 } }));
+
+      // 3 retries = 3 total calls (loop: attempt 0, 1, 2)
+      expect(mockGet).toHaveBeenCalledTimes(3);
+    });
+  });
 });
