@@ -63,8 +63,7 @@ export async function keyRoutes(
     handler: async (request) => {
       const { strategyId } = request.params as { strategyId: string };
       const keys = deps.keyManagerService.getKeysByStrategy(strategyId);
-      // Never expose the openrouter_key secret
-      return keys.map(({ openrouterKey: _secret, ...safeFields }) => safeFields);
+      return keys;
     },
   });
 

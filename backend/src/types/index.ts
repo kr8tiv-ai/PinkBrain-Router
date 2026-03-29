@@ -207,7 +207,6 @@ export interface UserKey {
   strategyId: string;
   holderWallet: string;
   openrouterKeyHash: string;
-  openrouterKey?: string;
   spendingLimitUsd: number;
   currentUsageUsd: number;
   status: 'ACTIVE' | 'EXHAUSTED' | 'EXPIRED' | 'REVOKED';

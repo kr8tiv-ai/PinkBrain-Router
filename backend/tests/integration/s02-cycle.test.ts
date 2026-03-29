@@ -41,8 +41,7 @@ describe('S02 integration cycle', () => {
                   strategyId: params[1],
                   holderWallet: params[2],
                   openrouterKeyHash: params[3],
-                  openrouterKey: params[4],
-                  spendingLimitUsd: params[5],
+                  spendingLimitUsd: params[4],
                 });
                 return { changes: 1 };
               },

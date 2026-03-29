@@ -85,7 +85,6 @@ export class KeyManagerService {
             strategyId: strategy.strategyId,
             holderWallet: alloc.holderWallet,
             openrouterKeyHash: data.hash,
-            openrouterKey: key,
             spendingLimitUsd: alloc.allocatedUsd,
             status: 'ACTIVE',
             expiresAt: this.calculateExpiry(strategy),
@@ -139,7 +138,7 @@ export class KeyManagerService {
     const row = this.deps.db
       .prepare(
         `SELECT key_id as keyId, strategy_id as strategyId, holder_wallet as holderWallet,
-                openrouter_key_hash as openrouterKeyHash, openrouter_key as openrouterKey,
+                openrouter_key_hash as openrouterKeyHash,
                 spending_limit_usd as spendingLimitUsd, current_usage_usd as currentUsageUsd,
                 status, created_at as createdAt, updated_at as updatedAt, expires_at as expiresAt
          FROM user_keys
@@ -158,7 +157,7 @@ export class KeyManagerService {
     const rows = this.deps.db
       .prepare(
         `SELECT key_id as keyId, strategy_id as strategyId, holder_wallet as holderWallet,
-                openrouter_key_hash as openrouterKeyHash, openrouter_key as openrouterKey,
+                openrouter_key_hash as openrouterKeyHash,
                 spending_limit_usd as spendingLimitUsd, current_usage_usd as currentUsageUsd,
                 status, created_at as createdAt, updated_at as updatedAt, expires_at as expiresAt
          FROM user_keys
@@ -237,7 +236,6 @@ export class KeyManagerService {
     strategyId: string;
     holderWallet: string;
     openrouterKeyHash: string;
-    openrouterKey: string;
     spendingLimitUsd: number;
     status: string;
     expiresAt: string | null;
@@ -247,15 +245,14 @@ export class KeyManagerService {
     this.deps.db
       .prepare(
         `INSERT INTO user_keys (key_id, strategy_id, holder_wallet, openrouter_key_hash,
-         openrouter_key, spending_limit_usd, current_usage_usd, status, created_at, updated_at, expires_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         spending_limit_usd, current_usage_usd, status, created_at, updated_at, expires_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
       .run(
         data.keyId,
         data.strategyId,
         data.holderWallet,
         data.openrouterKeyHash,
-        data.openrouterKey,
         data.spendingLimitUsd,
         0,
         data.status,

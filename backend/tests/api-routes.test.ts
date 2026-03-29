@@ -150,7 +150,6 @@ const mockUserKey = {
   strategyId: 'strat-0001',
   holderWallet: 'WalletA',
   openrouterKeyHash: 'key-hash-001',
-  openrouterKey: 'sk-or-secret-abc123', // SECRET — must never appear in API response
   spendingLimitUsd: 10,
   currentUsageUsd: 2.5,
   status: 'ACTIVE' as const,

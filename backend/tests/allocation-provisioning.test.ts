@@ -277,8 +277,7 @@ describe('KeyManagerService', () => {
                 strategyId: params[1],
                 holderWallet: params[2],
                 openrouterKeyHash: params[3],
-                openrouterKey: params[4],
-                spendingLimitUsd: params[5],
+                spendingLimitUsd: params[4],
               });
               return { changes: 1 };
             },
@@ -433,7 +432,6 @@ describe('KeyManagerService', () => {
       strategyId: 's1',
       holderWallet: 'wallet_a',
       openrouterKeyHash: 'hash-existing-1',
-      openrouterKey: 'sk-existing',
       spendingLimitUsd: 10,
       status: 'ACTIVE',
     });
@@ -459,7 +457,6 @@ describe('KeyManagerService', () => {
       strategyId: 's1',
       holderWallet: 'wallet_a',
       openrouterKeyHash: 'hash-existing-1',
-      openrouterKey: 'sk-existing',
       spendingLimitUsd: 50,
       status: 'ACTIVE',
     });
