@@ -3,6 +3,7 @@ import { migration as migration002 } from './002_runs.js';
 import { migration as migration003 } from './003_audit_log.js';
 import { migration as migration004 } from './004_user_keys.js';
 import { migration as migration005 } from './005_allocation_snapshots.js';
+import { migration as migration006 } from './006_usage_snapshots.js';
 import type { DatabaseConnection } from '../Database.js';
 
 export interface Migration {
@@ -17,4 +18,5 @@ export const migrations: Migration[] = [
   migration003,
   migration004,
   migration005,
+  migration006,
 ];
