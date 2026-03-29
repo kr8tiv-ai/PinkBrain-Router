@@ -5,12 +5,14 @@ import { runRoutes } from './runs.js';
 import { keyRoutes } from './keys.js';
 import { creditPoolRoutes } from './credit-pool.js';
 import { usageRoutes } from './usage.js';
+import { statsRoutes } from './stats.js';
 import type { HealthDeps } from './health.js';
 import type { StrategyRouteDeps } from './strategies.js';
 import type { RunRouteDeps } from './runs.js';
 import type { KeyRouteDeps } from './keys.js';
 import type { CreditPoolRouteDeps } from './credit-pool.js';
 import type { UsageRouteDeps } from './usage.js';
+import type { StatsRouteDeps } from './stats.js';
 
 export interface AllRouteDeps extends
   HealthDeps,
@@ -18,7 +20,8 @@ export interface AllRouteDeps extends
   RunRouteDeps,
   KeyRouteDeps,
   CreditPoolRouteDeps,
-  UsageRouteDeps {}
+  UsageRouteDeps,
+  StatsRouteDeps {}
 
 export async function registerAllRoutes(
   app: FastifyInstance,
@@ -33,6 +36,7 @@ export async function registerAllRoutes(
       await keyRoutes(api, deps);
       await creditPoolRoutes(api, deps);
       await usageRoutes(api, deps);
+      await statsRoutes(api, deps);
     },
     { prefix: '/api' },
   );
@@ -44,3 +48,4 @@ export { runRoutes } from './runs.js';
 export { keyRoutes } from './keys.js';
 export { creditPoolRoutes } from './credit-pool.js';
 export { usageRoutes } from './usage.js';
+export { statsRoutes } from './stats.js';

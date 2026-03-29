@@ -1,10 +1,12 @@
 import type { FastifyInstance } from 'fastify';
 import type { KeyManagerService } from '../services/KeyManagerService.js';
 import type { OpenRouterClient, KeyData } from '../clients/OpenRouterClient.js';
+import type { UsageTrackingService } from '../services/UsageTrackingService.js';
 
 export interface KeyRouteDeps {
   keyManagerService: KeyManagerService;
   openRouterClient: OpenRouterClient;
+  usageTrackingService: UsageTrackingService;
 }
 
 /**
@@ -41,6 +43,106 @@ export async function keyRoutes(
     },
   });
 
+  // ── Wallet-centric routes (before parametric :hash routes) ──
+
+  // GET /keys/wallet/:wallet — get active key by wallet
+  app.get('/keys/wallet/:wallet', {
+    handler: async (request, reply) => {
+      const { wallet } = request.params as { wallet: string };
+      const key = deps.keyManagerService.getActiveKeyByWallet(wallet);
+      if (!key) {
+        return reply.code(404).send({ error: 'No active key found for wallet', statusCode: 404 });
+      }
+      return key;
+    },
+  });
+
+  // GET /keys/wallet/:wallet/usage — get usage snapshots for wallet's active key
+  app.get('/keys/wallet/:wallet/usage', {
+    handler: async (request, reply) => {
+      const { wallet } = request.params as { wallet: string };
+      const key = deps.keyManagerService.getActiveKeyByWallet(wallet);
+      if (!key) {
+        return reply.code(404).send({ error: 'No active key found for wallet', statusCode: 404 });
+      }
+      const usage = deps.usageTrackingService.getKeyUsage(key.openrouterKeyHash);
+      return usage;
+    },
+  });
+
+  // POST /keys/wallet/:wallet/rotate — rotate active key for wallet
+  app.post('/keys/wallet/:wallet/rotate', {
+    handler: async (request, reply) => {
+      const { wallet } = request.params as { wallet: string };
+      const oldKey = deps.keyManagerService.getActiveKeyByWallet(wallet);
+      if (!oldKey) {
+        return reply.code(404).send({ error: 'No active key found for wallet', statusCode: 404 });
+      }
+
+      // Step (b): Create a new key via OpenRouter
+      let newKeyData: { key: string; data: KeyData };
+      try {
+        newKeyData = await deps.openRouterClient.createKey({
+          name: `creditbrain-rotate-${wallet.slice(0, 8)}`,
+          limit: oldKey.spendingLimitUsd,
+        });
+      } catch (error) {
+        return reply.code(500).send({
+          error: 'Failed to create new key',
+          detail: (error as Error).message,
+          statusCode: 500,
+        });
+      }
+
+      // Step (c): Revoke the old key — handle partial failure
+      let revoked = false;
+      try {
+        revoked = await deps.keyManagerService.revokeKey(oldKey.keyId);
+      } catch {
+        // Partial failure: new key created but old key not revoked
+      }
+
+      if (!revoked) {
+        return {
+          rotated: true,
+          warning: 'new key created but old key revocation failed',
+          newHash: newKeyData.data.hash,
+        };
+      }
+
+      return { rotated: true, newHash: newKeyData.data.hash };
+    },
+  });
+
+  // DELETE /keys/wallet/:wallet — revoke active key by wallet
+  app.delete('/keys/wallet/:wallet', {
+    handler: async (request, reply) => {
+      const { wallet } = request.params as { wallet: string };
+      const key = deps.keyManagerService.getActiveKeyByWallet(wallet);
+      if (!key) {
+        return reply.code(404).send({ error: 'No active key found for wallet', statusCode: 404 });
+      }
+      const revoked = await deps.keyManagerService.revokeKey(key.keyId);
+      if (!revoked) {
+        return reply.code(404).send({ error: 'Key not found', statusCode: 404 });
+      }
+      return { revoked: true, wallet };
+    },
+  });
+
+  // ── Strategy routes (before parametric :hash routes) ──
+
+  // GET /keys/strategy/:strategyId — get keys for a strategy
+  app.get('/keys/strategy/:strategyId', {
+    handler: async (request) => {
+      const { strategyId } = request.params as { strategyId: string };
+      const keys = deps.keyManagerService.getKeysByStrategy(strategyId);
+      return keys;
+    },
+  });
+
+  // ── Hash-based routes (parametric — must come last) ──
+
   // GET /keys/:hash — get a single key by hash
   app.get('/keys/:hash', {
     handler: async (request, reply) => {
@@ -55,15 +157,6 @@ export async function keyRoutes(
         }
         throw error;
       }
-    },
-  });
-
-  // GET /keys/strategy/:strategyId — get keys for a strategy
-  app.get('/keys/strategy/:strategyId', {
-    handler: async (request) => {
-      const { strategyId } = request.params as { strategyId: string };
-      const keys = deps.keyManagerService.getKeysByStrategy(strategyId);
-      return keys;
     },
   });
 

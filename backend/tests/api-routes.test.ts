@@ -107,6 +107,16 @@ function createMockRunService() {
     getAll: vi.fn().mockReturnValue([mockRun]),
     updateState: vi.fn().mockReturnValue(mockRun),
     markFailed: vi.fn(),
+    getAggregateStats: vi.fn().mockReturnValue({
+      totalRuns: 10,
+      completedRuns: 8,
+      failedRuns: 2,
+      totalClaimedSol: 50.5,
+      totalSwappedUsdc: 500.0,
+      totalAllocatedUsd: 400.0,
+      totalKeysProvisioned: 25,
+      totalKeysUpdated: 5,
+    }),
   };
 }
 
@@ -163,6 +173,7 @@ function createMockKeyManagerService() {
   return {
     getKeysByStrategy: vi.fn().mockReturnValue([mockUserKey]),
     getActiveKey: vi.fn().mockReturnValue(mockUserKey),
+    getActiveKeyByWallet: vi.fn().mockReturnValue(mockUserKey),
     revokeKey: vi.fn().mockResolvedValue(true),
     provisionKeys: vi.fn(),
   };
@@ -186,6 +197,12 @@ function createMockCreditPoolService() {
       lastUpdated: '2025-01-01T00:00:00Z',
     }),
     checkAllocation: vi.fn().mockResolvedValue({ allowed: true }),
+    getPoolHistory: vi.fn().mockReturnValue([{
+      id: 'alloc-001',
+      runId: 'run-0001',
+      amountUsd: 100,
+      createdAt: '2025-01-01T00:00:00Z',
+    }]),
     recordAllocation: vi.fn(),
     invalidateCache: vi.fn(),
   };
@@ -778,6 +795,287 @@ describe('Boundary conditions', () => {
     });
     expect(res.statusCode).toBe(200);
     expect(res.json()).toEqual([]);
+    await app.close();
+  });
+});
+
+// ─── Wallet Key Routes ─────────────────────────────────────────
+
+describe('Wallet Key Routes', () => {
+  it('GET /keys/wallet/:wallet returns active key', async () => {
+    const { app, deps } = await createApp();
+    const res = await app.inject({
+      method: 'GET',
+      url: '/api/keys/wallet/WalletA',
+      headers: AUTH_HEADER,
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().keyId).toBe('uk-0001');
+    expect(res.json().holderWallet).toBe('WalletA');
+    expect(deps.keyManagerService.getActiveKeyByWallet).toHaveBeenCalledWith('WalletA');
+    await app.close();
+  });
+
+  it('GET /keys/wallet/:wallet returns 404 when no active key', async () => {
+    const app = Fastify({ logger: false });
+    const deps = createAllDeps();
+    deps.keyManagerService.getActiveKeyByWallet = vi.fn().mockReturnValue(null);
+    await registerAllRoutes(app, deps);
+
+    const res = await app.inject({
+      method: 'GET',
+      url: '/api/keys/wallet/unknown-wallet',
+      headers: AUTH_HEADER,
+    });
+    expect(res.statusCode).toBe(404);
+    expect(res.json().error).toContain('No active key found');
+    await app.close();
+  });
+
+  it('DELETE /keys/wallet/:wallet revokes key without requiring keyId in body', async () => {
+    const { app, deps } = await createApp();
+    const res = await app.inject({
+      method: 'DELETE',
+      url: '/api/keys/wallet/WalletA',
+      headers: AUTH_HEADER,
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().revoked).toBe(true);
+    expect(res.json().wallet).toBe('WalletA');
+    expect(deps.keyManagerService.getActiveKeyByWallet).toHaveBeenCalledWith('WalletA');
+    expect(deps.keyManagerService.revokeKey).toHaveBeenCalledWith('uk-0001');
+    await app.close();
+  });
+
+  it('DELETE /keys/wallet/:wallet returns 404 when no active key', async () => {
+    const app = Fastify({ logger: false });
+    const deps = createAllDeps();
+    deps.keyManagerService.getActiveKeyByWallet = vi.fn().mockReturnValue(null);
+    await registerAllRoutes(app, deps);
+
+    const res = await app.inject({
+      method: 'DELETE',
+      url: '/api/keys/wallet/unknown-wallet',
+      headers: AUTH_HEADER,
+    });
+    expect(res.statusCode).toBe(404);
+    await app.close();
+  });
+
+  it('POST /keys/wallet/:wallet/rotate creates new key and revokes old', async () => {
+    const app = Fastify({ logger: false });
+    const deps = createAllDeps();
+    deps.openRouterClient.createKey = vi.fn().mockResolvedValue({
+      key: 'sk-new-secret',
+      data: { ...mockKeyData, hash: 'key-hash-new' },
+    });
+    deps.keyManagerService.revokeKey = vi.fn().mockResolvedValue(true);
+    await registerAllRoutes(app, deps);
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/keys/wallet/WalletA/rotate',
+      headers: AUTH_HEADER,
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().rotated).toBe(true);
+    expect(res.json().newHash).toBe('key-hash-new');
+    expect(deps.openRouterClient.createKey).toHaveBeenCalled();
+    expect(deps.keyManagerService.revokeKey).toHaveBeenCalledWith('uk-0001');
+    await app.close();
+  });
+
+  it('POST /keys/wallet/:wallet/rotate returns partial success when revocation fails', async () => {
+    const app = Fastify({ logger: false });
+    const deps = createAllDeps();
+    deps.openRouterClient.createKey = vi.fn().mockResolvedValue({
+      key: 'sk-new-secret',
+      data: { ...mockKeyData, hash: 'key-hash-new' },
+    });
+    deps.keyManagerService.revokeKey = vi.fn().mockRejectedValue(new Error('Revocation failed'));
+    await registerAllRoutes(app, deps);
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/keys/wallet/WalletA/rotate',
+      headers: AUTH_HEADER,
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().rotated).toBe(true);
+    expect(res.json().newHash).toBe('key-hash-new');
+    expect(res.json().warning).toContain('old key revocation failed');
+    await app.close();
+  });
+
+  it('POST /keys/wallet/:wallet/rotate returns 404 when no active key', async () => {
+    const app = Fastify({ logger: false });
+    const deps = createAllDeps();
+    deps.keyManagerService.getActiveKeyByWallet = vi.fn().mockReturnValue(null);
+    await registerAllRoutes(app, deps);
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/keys/wallet/unknown-wallet/rotate',
+      headers: AUTH_HEADER,
+    });
+    expect(res.statusCode).toBe(404);
+    await app.close();
+  });
+
+  it('POST /keys/wallet/:wallet/rotate returns 500 when createKey fails', async () => {
+    const app = Fastify({ logger: false });
+    const deps = createAllDeps();
+    deps.openRouterClient.createKey = vi.fn().mockRejectedValue(new Error('API error'));
+    await registerAllRoutes(app, deps);
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/keys/wallet/WalletA/rotate',
+      headers: AUTH_HEADER,
+    });
+    expect(res.statusCode).toBe(500);
+    expect(res.json().error).toContain('Failed to create new key');
+    await app.close();
+  });
+
+  it('GET /keys/wallet/:wallet/usage returns usage for wallet active key', async () => {
+    const { app, deps } = await createApp();
+    const res = await app.inject({
+      method: 'GET',
+      url: '/api/keys/wallet/WalletA/usage',
+      headers: AUTH_HEADER,
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toHaveLength(1);
+    expect(res.json()[0].key_hash).toBe('key-hash-001');
+    expect(deps.keyManagerService.getActiveKeyByWallet).toHaveBeenCalledWith('WalletA');
+    expect(deps.usageTrackingService.getKeyUsage).toHaveBeenCalledWith('key-hash-001');
+    await app.close();
+  });
+
+  it('GET /keys/wallet/:wallet/usage returns 404 when no active key', async () => {
+    const app = Fastify({ logger: false });
+    const deps = createAllDeps();
+    deps.keyManagerService.getActiveKeyByWallet = vi.fn().mockReturnValue(null);
+    await registerAllRoutes(app, deps);
+
+    const res = await app.inject({
+      method: 'GET',
+      url: '/api/keys/wallet/unknown-wallet/usage',
+      headers: AUTH_HEADER,
+    });
+    expect(res.statusCode).toBe(404);
+    await app.close();
+  });
+
+  it('GET /keys/wallet with empty string returns 404', async () => {
+    const app = Fastify({ logger: false });
+    const deps = createAllDeps();
+    deps.keyManagerService.getActiveKeyByWallet = vi.fn().mockReturnValue(null);
+    await registerAllRoutes(app, deps);
+
+    const res = await app.inject({
+      method: 'GET',
+      url: '/api/keys/wallet/',
+      headers: AUTH_HEADER,
+    });
+    expect(res.statusCode).toBe(404);
+    await app.close();
+  });
+});
+
+// ─── Pool History Route ─────────────────────────────────────────
+
+describe('Pool History Route', () => {
+  it('GET /credit-pool/history returns allocation records', async () => {
+    const { app, deps } = await createApp();
+    const res = await app.inject({
+      method: 'GET',
+      url: '/api/credit-pool/history',
+      headers: AUTH_HEADER,
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toHaveLength(1);
+    expect(res.json()[0].id).toBe('alloc-001');
+    expect(res.json()[0].runId).toBe('run-0001');
+    expect(res.json()[0].amountUsd).toBe(100);
+    expect(deps.creditPoolService.getPoolHistory).toHaveBeenCalledWith(100);
+    await app.close();
+  });
+
+  it('GET /credit-pool/history respects limit query param', async () => {
+    const { app, deps } = await createApp();
+    const res = await app.inject({
+      method: 'GET',
+      url: '/api/credit-pool/history?limit=50',
+      headers: AUTH_HEADER,
+    });
+    expect(res.statusCode).toBe(200);
+    expect(deps.creditPoolService.getPoolHistory).toHaveBeenCalledWith(50);
+    await app.close();
+  });
+
+  it('GET /credit-pool/history caps limit at 1000', async () => {
+    const { app, deps } = await createApp();
+    const res = await app.inject({
+      method: 'GET',
+      url: '/api/credit-pool/history?limit=9999',
+      headers: AUTH_HEADER,
+    });
+    expect(res.statusCode).toBe(200);
+    expect(deps.creditPoolService.getPoolHistory).toHaveBeenCalledWith(1000);
+    await app.close();
+  });
+});
+
+// ─── Stats Route ────────────────────────────────────────────────
+
+describe('Stats Route', () => {
+  it('GET /stats returns aggregate statistics', async () => {
+    const { app, deps } = await createApp();
+    const res = await app.inject({
+      method: 'GET',
+      url: '/api/stats',
+      headers: AUTH_HEADER,
+    });
+    expect(res.statusCode).toBe(200);
+    const body = res.json();
+    expect(body.totalRuns).toBe(10);
+    expect(body.completedRuns).toBe(8);
+    expect(body.failedRuns).toBe(2);
+    expect(body.totalClaimedSol).toBe(50.5);
+    expect(body.totalSwappedUsdc).toBe(500.0);
+    expect(body.totalAllocatedUsd).toBe(400.0);
+    expect(body.totalKeysProvisioned).toBe(25);
+    expect(body.totalKeysUpdated).toBe(5);
+    expect(deps.runService.getAggregateStats).toHaveBeenCalledOnce();
+    await app.close();
+  });
+
+  it('GET /stats returns all zeros when no data exists', async () => {
+    const app = Fastify({ logger: false });
+    const deps = createAllDeps();
+    deps.runService.getAggregateStats = vi.fn().mockReturnValue({
+      totalRuns: 0,
+      completedRuns: 0,
+      failedRuns: 0,
+      totalClaimedSol: 0,
+      totalSwappedUsdc: 0,
+      totalAllocatedUsd: 0,
+      totalKeysProvisioned: 0,
+      totalKeysUpdated: 0,
+    });
+    await registerAllRoutes(app, deps);
+
+    const res = await app.inject({
+      method: 'GET',
+      url: '/api/stats',
+      headers: AUTH_HEADER,
+    });
+    expect(res.statusCode).toBe(200);
+    const body = res.json();
+    expect(body.totalRuns).toBe(0);
+    expect(body.completedRuns).toBe(0);
     await app.close();
   });
 });
