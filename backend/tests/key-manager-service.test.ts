@@ -16,17 +16,26 @@ vi.mock('node:crypto', () => ({
   randomUUID: vi.fn(() => 'mock-uuid-1234'),
 }));
 
-function createMockDb(): DatabaseConnection {
+function createMockDb(): DatabaseConnection & { _rows: Record<string, unknown[]> } {
   const _rows: Record<string, unknown[]> = {
     user_keys: [],
     allocation_snapshots: [],
   };
   const db = {
+    _rows,
     prepare: vi.fn((sql: string) => {
-      // Simple mock that parses SQL to provide basic row tracking
+      const flatSql = sql.replace(/\s+/g, ' ').trim();
       return {
         get: vi.fn((..._args: unknown[]) => {
-          if (sql.includes('WHERE holder_wallet') && sql.includes('status')) {
+          if (sql.includes('WHERE holder_wallet') && sql.includes('strategy_id')) {
+            return _rows.user_keys.find(
+              (r: unknown) =>
+                (r as UserKey).holderWallet === _args[0] &&
+                (r as UserKey).strategyId === _args[1] &&
+                (r as UserKey).status === 'ACTIVE',
+            ) ?? null;
+          }
+          if (sql.includes('WHERE holder_wallet') && sql.includes("status = 'ACTIVE'")) {
             return _rows.user_keys.find(
               (r: unknown) =>
                 (r as UserKey).holderWallet === _args[0] &&
@@ -49,7 +58,6 @@ function createMockDb(): DatabaseConnection {
           return [];
         }),
         run: vi.fn((..._args: unknown[]) => {
-          const flatSql = sql.replace(/\s+/g, ' ').trim();
           if (flatSql.startsWith('INSERT INTO user_keys')) {
             _rows.user_keys.push({
               keyId: _args[0],
@@ -64,21 +72,26 @@ function createMockDb(): DatabaseConnection {
               updatedAt: _args[9],
               expiresAt: _args[10],
             });
-          } else if (flatSql.startsWith('UPDATE user_keys SET status')) {
+          } else if (flatSql.includes('UPDATE user_keys') && flatSql.includes('spending_limit_usd')) {
+            // Dynamic UPDATE: ... SET spending_limit_usd = ?, updated_at = ? WHERE key_id = ?
+            const keyId = _args[_args.length - 1];
+            const row = _rows.user_keys.find((r: unknown) => (r as UserKey).keyId === keyId);
+            if (row) {
+              (row as UserKey).spendingLimitUsd = _args[0] as number;
+              (row as UserKey).updatedAt = _args[1] as string;
+            }
+          } else if (flatSql.includes('UPDATE user_keys') && flatSql.includes("status = 'REVOKED'")) {
             const keyId = _args[_args.length - 1];
             const row = _rows.user_keys.find((r: unknown) => (r as UserKey).keyId === keyId);
             if (row) (row as UserKey).status = 'REVOKED';
-          } else if (flatSql.startsWith('UPDATE user_keys SET spending_limit_usd')) {
-            const keyId = _args[_args.length - 1];
-            const row = _rows.user_keys.find((r: unknown) => (r as UserKey).keyId === keyId);
-            if (row) (row as UserKey).spendingLimitUsd = _args[1] as number;
           } else if (flatSql.startsWith('UPDATE allocation_snapshots')) {
-            // allocation update tracking
+            // allocation update tracking — no-op
           }
         }),
       };
     }),
-  } as unknown as DatabaseConnection;
+  } as unknown as DatabaseConnection & { _rows: Record<string, unknown[]> };
+  return db;
 }
 
 const baseStrategy: Strategy = {
@@ -109,7 +122,7 @@ function createMockOpenRouterClient() {
 }
 
 describe('KeyManagerService', () => {
-  let mockDb: DatabaseConnection;
+  let mockDb: DatabaseConnection & { _rows: Record<string, unknown[]> };
   let mockClient: ReturnType<typeof createMockOpenRouterClient>;
   let service: KeyManagerService;
 
@@ -122,7 +135,7 @@ describe('KeyManagerService', () => {
   describe('provisionKeys — existing key limit update', () => {
     it('updates spending limit when existing key has different limit', async () => {
       // Seed an existing active key directly into the mock DB
-      (mockDb as unknown as { _rows: Record<string, unknown[]> })._rows.user_keys.push({
+      mockDb._rows.user_keys.push({
         keyId: 'key-existing',
         strategyId: 'strat-001',
         holderWallet: 'wallet-abc',
@@ -147,7 +160,7 @@ describe('KeyManagerService', () => {
     });
 
     it('skips update when existing key already has correct limit', async () => {
-      (mockDb as unknown as { _rows: Record<string, unknown[]> })._rows.user_keys.push({
+      mockDb._rows.user_keys.push({
         keyId: 'key-existing',
         strategyId: 'strat-001',
         holderWallet: 'wallet-abc',
@@ -263,7 +276,7 @@ describe('KeyManagerService', () => {
 
     it('marks key as revoked even when OpenRouter disable fails', async () => {
       // Seed an existing key directly into the mock DB
-      (mockDb as unknown as { _rows: Record<string, unknown[]> })._rows.user_keys.push({
+      mockDb._rows.user_keys.push({
         keyId: 'key-to-revoke',
         strategyId: 'strat-001',
         holderWallet: 'wallet-abc',
