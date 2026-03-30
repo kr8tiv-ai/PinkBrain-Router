@@ -79,20 +79,11 @@ export async function keyRoutes(
         return reply.code(404).send({ error: 'No active key found for wallet', statusCode: 404 });
       }
 
-      // Step (b): Create a new key via OpenRouter
-      let newKeyData: { key: string; data: KeyData };
-      try {
-        newKeyData = await deps.openRouterClient.createKey({
-          name: `creditbrain-rotate-${wallet.slice(0, 8)}`,
-          limit: oldKey.spendingLimitUsd,
-        });
-      } catch (error) {
-        return reply.code(500).send({
-          error: 'Failed to create new key',
-          detail: (error as Error).message,
-          statusCode: 500,
-        });
-      }
+      // Step (b): Create a new key via OpenRouter — re-throw to let centralized error handler sanitize
+      const newKeyData = await deps.openRouterClient.createKey({
+        name: `creditbrain-rotate-${wallet.slice(0, 8)}`,
+        limit: oldKey.spendingLimitUsd,
+      });
 
       // Step (c): Revoke the old key — handle partial failure
       let revoked = false;

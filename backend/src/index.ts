@@ -90,7 +90,7 @@ async function main() {
   // Requires both Solana signer (for burn) and EVM key (for mint on Base).
   // Falls back to stub when either key is missing.
   const evmPrivateKey = config.evmPrivateKey;
-  let bridgeDeps: { bridgeService: CctpBridgeService } | undefined;
+  let bridgeDeps: { bridgeService: CctpBridgeService; dryRun?: boolean } | undefined;
   if (config.signerPrivateKey && evmPrivateKey) {
     const bridgeKitClient = new BridgeKitClient({
       solanaRpcUrl: config.heliusRpcUrl,

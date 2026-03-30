@@ -88,6 +88,7 @@ function createDeps(overrides?: Partial<DatabaseConnection & OpenRouterClient>) 
     keyManagerService: {
       getKeysByStrategy: vi.fn().mockReturnValue([]),
       getActiveKey: vi.fn().mockReturnValue(null),
+      getActiveKeyByWallet: vi.fn().mockReturnValue(null),
       revokeKey: vi.fn().mockResolvedValue(false),
       provisionKeys: vi.fn(),
     },
@@ -734,6 +735,110 @@ describe('Per-route rate limiting', () => {
       expect(response.statusCode).toBe(200);
     }
 
+    await app.close();
+  });
+});
+
+// ─── Error detail leakage tests ─────────────────────────────────
+
+describe('Error detail leakage prevention', () => {
+  it('rotate endpoint 500 response has no detail field when createKey fails', async () => {
+    const deps = createDeps();
+    // Setup: getActiveKeyByWallet returns a key so rotation proceeds
+    const mockKey = {
+      keyId: 'or-key-123',
+      strategyId: 'test-strategy',
+      holderWallet: 'WalletA',
+      openrouterKeyHash: 'abc123',
+      spendingLimitUsd: 10,
+      currentUsageUsd: 0,
+      totalAllocatedUsd: 0,
+      lastSyncedAt: null,
+      status: 'ACTIVE' as const,
+      createdAt: '2025-01-01T00:00:00Z',
+    };
+    deps.keyManagerService.getActiveKeyByWallet = vi.fn().mockReturnValue(mockKey);
+    // createKey throws — previously this leaked error.message as `detail`
+    deps.openRouterClient.createKey = vi.fn().mockRejectedValue(new Error('OpenRouter API key quota exceeded'));
+
+    const app = await buildApp(deps);
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/keys/wallet/WalletA/rotate',
+      headers: { authorization: `Bearer ${TEST_TOKEN}` },
+    });
+
+    expect(response.statusCode).toBe(500);
+    const body = response.json();
+    // Must NOT contain the `detail` field that previously leaked error.message
+    expect(body).not.toHaveProperty('detail');
+    // Centralized error handler provides sanitized response
+    expect(body).toHaveProperty('error');
+    expect(body).toHaveProperty('statusCode', 500);
+
+    await app.close();
+  });
+});
+
+// ─── Security headers tests ─────────────────────────────────────
+
+describe('Security headers (@fastify/helmet)', () => {
+  it('sets X-Content-Type-Options: nosniff on responses', async () => {
+    const deps = createDeps();
+    const app = await buildApp(deps);
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/health/live',
+    });
+
+    expect(response.headers['x-content-type-options']).toBe('nosniff');
+    await app.close();
+  });
+
+  it('sets X-Frame-Options to deny framing', async () => {
+    const deps = createDeps();
+    const app = await buildApp(deps);
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/health/live',
+    });
+
+    // Helmet defaults to SAMEORIGIN or DENY depending on version
+    const frameOptions = response.headers['x-frame-options'];
+    expect(frameOptions).toBeDefined();
+    expect(['DENY', 'SAMEORIGIN']).toContain(frameOptions);
+    await app.close();
+  });
+
+  it('sets Strict-Transport-Security header', async () => {
+    const deps = createDeps();
+    const app = await buildApp(deps);
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/health/live',
+    });
+
+    const hsts = response.headers['strict-transport-security'];
+    expect(hsts).toBeDefined();
+    expect(hsts).toContain('max-age=');
+    await app.close();
+  });
+
+  it('sets X-DNS-Prefetch-Control header', async () => {
+    const deps = createDeps();
+    const app = await buildApp(deps);
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/health/live',
+    });
+
+    const dnsPrefetch = response.headers['x-dns-prefetch-control'];
+    expect(dnsPrefetch).toBeDefined();
     await app.close();
   });
 });

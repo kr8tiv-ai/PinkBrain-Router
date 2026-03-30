@@ -2,6 +2,7 @@ import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import rateLimit from '@fastify/rate-limit';
 import sensible from '@fastify/sensible';
+import helmet from '@fastify/helmet';
 import { registerAllRoutes, healthRoutes } from './routes/index.js';
 import type { AllRouteDeps } from './routes/index.js';
 import type { HealthDeps } from './routes/health.js';
@@ -45,6 +46,9 @@ export async function buildApp(deps: ServerDeps) {
 
   // Sensible — standardized error responses
   await app.register(sensible);
+
+  // Helmet — security headers (X-Content-Type-Options, X-Frame-Options, etc.)
+  await app.register(helmet);
 
   // Request logging — attach timing and ID
   app.addHook('onRequest', async (request) => {
