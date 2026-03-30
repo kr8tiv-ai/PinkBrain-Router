@@ -1,27 +1,8 @@
 import { Link, useSearchParams } from 'react-router';
 import { useRuns, useStrategies, useTriggerRun, useResumeRun, ApiClientError } from '@/api';
 import { RunStateBadge } from '@/components/StatusBadge';
-
-function formatDateTime(iso: string | null): string {
-  if (!iso) return '—';
-  return new Date(iso).toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-  });
-}
-
-function formatUsd(val: number | null): string {
-  if (val === null || val === undefined) return '—';
-  return `$${val.toFixed(2)}`;
-}
-
-function truncateId(id: string): string {
-  if (id.length <= 12) return id;
-  return `${id.slice(0, 8)}...${id.slice(-4)}`;
-}
+import { LoadingSpinner, EmptyState, ErrorState } from '@/components/ui';
+import { formatUsd, formatDateTime, truncateId } from '@/lib/format';
 
 export default function RunsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -95,40 +76,32 @@ export default function RunsPage() {
       </div>
 
       {!strategyId ? (
-        <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-gray-800 py-20">
-          <svg className="mb-4 h-12 w-12 text-text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          <p className="text-sm text-text-muted">Select a strategy to view runs</p>
-        </div>
+        <EmptyState
+          icon={
+            <svg className="h-12 w-12 text-text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          }
+          title="Select a strategy to view runs"
+        />
       ) : isLoading ? (
-        <div className="flex items-center justify-center py-20">
-          <div className="h-8 w-8 animate-spin rounded-full border-2 border-neon-green border-t-transparent" />
-        </div>
+        <LoadingSpinner />
       ) : error ? (
-        <div className="rounded-lg border border-red-500/30 bg-surface p-6">
-          <h2 className="mb-2 text-sm font-semibold text-red-400">Failed to load runs</h2>
-          <p className="font-mono text-xs text-text-muted">{(error as Error).message}</p>
-          <button
-            type="button"
-            onClick={() => refetch()}
-            className="mt-3 text-xs text-neon-green transition hover:brightness-110"
-          >
-            Retry
-          </button>
-        </div>
+        <ErrorState title="Failed to load runs" message={(error as Error).message} onRetry={() => refetch()} />
       ) : !runs || runs.length === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-gray-800 py-20">
-          <p className="text-sm text-text-muted">No runs for this strategy yet</p>
-          <button
-            type="button"
-            onClick={() => triggerRun.mutate(strategyId)}
-            disabled={triggerRun.isPending}
-            className="mt-4 text-sm text-neon-green transition hover:brightness-110 disabled:opacity-50"
-          >
-            Trigger the first run
-          </button>
-        </div>
+        <EmptyState
+          title="No runs for this strategy yet"
+          action={
+            <button
+              type="button"
+              onClick={() => triggerRun.mutate(strategyId)}
+              disabled={triggerRun.isPending}
+              className="text-sm text-neon-green transition hover:brightness-110 disabled:opacity-50"
+            >
+              Trigger the first run
+            </button>
+          }
+        />
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">

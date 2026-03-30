@@ -2,20 +2,8 @@ import { useState } from 'react';
 import { Link } from 'react-router';
 import { useKeys } from '@/api';
 import { ProgressBar } from '@/components/ProgressBar';
-
-function formatDate(iso: string | null): string {
-  if (!iso) return '—';
-  return new Date(iso).toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  });
-}
-
-function truncateHash(hash: string): string {
-  if (hash.length <= 16) return hash;
-  return `${hash.slice(0, 10)}...${hash.slice(-4)}`;
-}
+import { LoadingSpinner, EmptyState, ErrorState } from '@/components/ui';
+import { formatDate, truncateId } from '@/lib/format';
 
 export default function KeysPage() {
   const { data: keys, isLoading, error } = useKeys();
@@ -28,20 +16,11 @@ export default function KeysPage() {
   });
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-neon-green border-t-transparent" />
-      </div>
-    );
+    return <LoadingSpinner />;
   }
 
   if (error) {
-    return (
-      <div className="rounded-lg border border-red-500/30 bg-surface p-6">
-        <h2 className="mb-2 text-sm font-semibold text-red-400">Failed to load keys</h2>
-        <p className="font-mono text-xs text-text-muted">{(error as Error).message}</p>
-      </div>
-    );
+    return <ErrorState title="Failed to load keys" message={(error as Error).message} />;
   }
 
   return (
@@ -73,12 +52,14 @@ export default function KeysPage() {
       </div>
 
       {!filteredKeys || filteredKeys.length === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-gray-800 py-20">
-          <svg className="mb-4 h-12 w-12 text-text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
-          </svg>
-          <p className="text-sm text-text-muted">No keys found</p>
-        </div>
+        <EmptyState
+          icon={
+            <svg className="h-12 w-12 text-text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+            </svg>
+          }
+          title="No keys found"
+        />
       ) : (
         <div className="grid gap-3">
           {filteredKeys.map((key) => {
@@ -95,7 +76,7 @@ export default function KeysPage() {
                   <div className="min-w-0 flex-1">
                     <div className="mb-2 flex items-center gap-3">
                       <span className="truncate font-mono text-sm font-medium text-text-primary">
-                        {key.name || truncateHash(key.hash)}
+                        {key.name || truncateId(key.hash, 10)}
                       </span>
                       {key.disabled && (
                         <span className="rounded border border-gray-600 bg-gray-800 px-1.5 py-0.5 text-xs text-gray-400">

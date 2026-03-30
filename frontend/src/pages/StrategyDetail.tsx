@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router';
 import { useStrategy, useRuns, useStrategyKeys, useTriggerRun, useDeleteStrategy, useEnableStrategy, useDisableStrategy, ApiClientError } from '@/api';
 import { StatusBadge, RunStateBadge } from '@/components/StatusBadge';
+import { LoadingSpinner, ErrorState } from '@/components/ui';
+import { formatUsd, formatDate } from '@/lib/format';
 
 const KEY_STATUS_COLORS: Record<string, string> = {
   ACTIVE: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
@@ -19,22 +21,6 @@ function KeyStatusBadge({ status }: { status: string }) {
   );
 }
 
-function formatDate(iso: string | null): string {
-  if (!iso) return '—';
-  return new Date(iso).toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-}
-
-function formatUsd(val: number | null): string {
-  if (val === null || val === undefined) return '—';
-  return `$${val.toFixed(2)}`;
-}
-
 export default function StrategyDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -50,27 +36,11 @@ export default function StrategyDetail() {
   const isConflict = triggerRun.isError && triggerRun.error instanceof ApiClientError && triggerRun.error.status === 409;
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-neon-green border-t-transparent" />
-      </div>
-    );
+    return <LoadingSpinner />;
   }
 
   if (error || !strategy) {
-    return (
-      <div className="rounded-lg border border-red-500/30 bg-surface p-6">
-        <h2 className="mb-2 text-sm font-semibold text-red-400">Failed to load strategy</h2>
-        <p className="font-mono text-xs text-text-muted">{(error as Error)?.message ?? 'Not found'}</p>
-        <button
-          type="button"
-          onClick={() => navigate('/strategies')}
-          className="mt-4 text-sm text-neon-green transition hover:brightness-110"
-        >
-          &larr; Back to strategies
-        </button>
-      </div>
-    );
+    return <ErrorState title="Failed to load strategy" message={(error as Error)?.message ?? 'Not found'} backTo="/strategies" backLabel="Back to strategies" />;
   }
 
   return (

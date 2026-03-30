@@ -1,40 +1,18 @@
 import { Link } from 'react-router';
 import { useStrategies } from '@/api';
 import { StatusBadge } from '@/components/StatusBadge';
-
-function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-}
-
-function truncateWallet(wallet: string): string {
-  if (wallet.length <= 10) return wallet;
-  return `${wallet.slice(0, 6)}...${wallet.slice(-4)}`;
-}
+import { LoadingSpinner, EmptyState, ErrorState } from '@/components/ui';
+import { formatDate, truncateId } from '@/lib/format';
 
 export default function StrategyList() {
   const { data: strategies, isLoading, error } = useStrategies();
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-neon-green border-t-transparent" />
-      </div>
-    );
+    return <LoadingSpinner />;
   }
 
   if (error) {
-    return (
-      <div className="rounded-lg border border-red-500/30 bg-surface p-6">
-        <h2 className="mb-2 text-sm font-semibold text-red-400">Failed to load strategies</h2>
-        <p className="font-mono text-xs text-text-muted">{(error as Error).message}</p>
-      </div>
-    );
+    return <ErrorState title="Failed to load strategies" message={(error as Error).message} />;
   }
 
   return (
@@ -55,18 +33,19 @@ export default function StrategyList() {
       </div>
 
       {!strategies || strategies.length === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-gray-800 py-20">
-          <svg className="mb-4 h-12 w-12 text-text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-          </svg>
-          <p className="text-sm text-text-muted">No strategies yet</p>
-          <Link
-            to="/strategies/new"
-            className="mt-4 text-sm text-neon-green transition hover:brightness-110"
-          >
-            Create your first strategy
-          </Link>
-        </div>
+        <EmptyState
+          icon={
+            <svg className="h-12 w-12 text-text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+            </svg>
+          }
+          title="No strategies yet"
+          action={
+            <Link to="/strategies/new" className="text-sm text-neon-green transition hover:brightness-110">
+              Create your first strategy
+            </Link>
+          }
+        />
       ) : (
         <div className="grid gap-4">
           {strategies.map((s) => (
@@ -79,7 +58,7 @@ export default function StrategyList() {
                 <div className="min-w-0 flex-1">
                   <div className="mb-2 flex items-center gap-3">
                     <span className="truncate font-mono text-sm font-medium text-text-primary">
-                      {truncateWallet(s.ownerWallet)}
+                      {truncateId(s.ownerWallet, 6)}
                     </span>
                     <StatusBadge status={s.status} />
                   </div>

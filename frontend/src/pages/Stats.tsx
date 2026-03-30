@@ -1,13 +1,6 @@
 import { useStats } from '@/api';
-
-function formatUsd(val: number): string {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(val);
-}
+import { LoadingSpinner, ErrorState, PageHeader } from '@/components/ui';
+import { formatUsd } from '@/lib/format';
 
 function formatSol(val: number): string {
   return `${val.toFixed(4)} SOL`;
@@ -32,20 +25,11 @@ export default function StatsPage() {
   const { data: stats, isLoading, error } = useStats();
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-neon-green border-t-transparent" />
-      </div>
-    );
+    return <LoadingSpinner />;
   }
 
   if (error || !stats) {
-    return (
-      <div className="rounded-lg border border-red-500/30 bg-surface p-6">
-        <h2 className="mb-2 text-sm font-semibold text-red-400">Failed to load stats</h2>
-        <p className="font-mono text-xs text-text-muted">{(error as Error).message}</p>
-      </div>
-    );
+    return <ErrorState title="Failed to load stats" message={(error as Error).message} />;
   }
 
   const successRate = stats.totalRuns > 0
@@ -54,12 +38,7 @@ export default function StatsPage() {
 
   return (
     <div>
-      <div className="mb-6">
-        <h1 className="text-xl font-bold text-text-primary">Stats</h1>
-        <p className="mt-1 text-sm text-text-secondary">
-          Aggregate pipeline statistics
-        </p>
-      </div>
+      <PageHeader title="Stats" subtitle="Aggregate pipeline statistics" />
 
       {/* Primary metrics */}
       <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

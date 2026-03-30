@@ -1,5 +1,6 @@
 import { NavLink, useLocation } from 'react-router';
 import { useAuth } from '@/hooks/useAuth';
+import { truncateId } from '@/lib/format';
 
 const NAV_ITEMS = [
   { to: '/strategies', label: 'Strategies' },
@@ -9,11 +10,6 @@ const NAV_ITEMS = [
   { to: '/health', label: 'Health' },
   { to: '/stats', label: 'Stats' },
 ];
-
-function truncateWallet(wallet: string): string {
-  if (wallet.length <= 10) return wallet;
-  return `${wallet.slice(0, 6)}...${wallet.slice(-4)}`;
-}
 
 export function Sidebar({
   open,
@@ -66,7 +62,7 @@ export function Sidebar({
           {token ? (
             <div className="flex items-center justify-between">
               <span className="font-mono text-xs text-text-muted">
-                Token: {truncateWallet(token)}
+                Token: {truncateId(token, 6)}
               </span>
               <button
                 type="button"

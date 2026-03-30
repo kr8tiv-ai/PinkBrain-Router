@@ -1,4 +1,6 @@
 import { useHealth } from '@/api';
+import { LoadingSpinner, ErrorState } from '@/components/ui';
+import { formatDateTime } from '@/lib/format';
 
 function formatUptime(seconds: number): string {
   if (seconds < 60) return `${seconds}s`;
@@ -11,17 +13,6 @@ function formatUptime(seconds: number): string {
   const days = Math.floor(hours / 24);
   const remainingHours = hours % 24;
   return `${days}d ${remainingHours}h`;
-}
-
-function formatDateTime(iso: string): string {
-  return new Date(iso).toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-  });
 }
 
 function StatusDot({ ok }: { ok: boolean }) {
@@ -63,20 +54,11 @@ export default function HealthPage() {
   const { data: health, isLoading, error } = useHealth();
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-neon-green border-t-transparent" />
-      </div>
-    );
+    return <LoadingSpinner />;
   }
 
   if (error || !health) {
-    return (
-      <div className="rounded-lg border border-red-500/30 bg-surface p-6">
-        <h2 className="mb-2 text-sm font-semibold text-red-400">Failed to load health status</h2>
-        <p className="font-mono text-xs text-text-muted">{(error as Error).message}</p>
-      </div>
-    );
+    return <ErrorState title="Failed to load health status" message={(error as Error).message} />;
   }
 
   const allHealthy = health.status === 'ok' && health.dependencies.openrouter && health.dependencies.database;

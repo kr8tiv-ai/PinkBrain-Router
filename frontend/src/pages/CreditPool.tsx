@@ -1,25 +1,7 @@
 import { useCreditPool } from '@/api';
 import { ProgressBar } from '@/components/ProgressBar';
-
-function formatUsd(val: number): string {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(val);
-}
-
-function formatDateTime(iso: string): string {
-  return new Date(iso).toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-  });
-}
+import { LoadingSpinner, ErrorState, PageHeader } from '@/components/ui';
+import { formatUsd, formatDateTime } from '@/lib/format';
 
 function getAvailabilityColor(availablePct: number): 'green' | 'yellow' | 'red' {
   if (availablePct > 20) return 'green';
@@ -37,20 +19,11 @@ export default function CreditPoolPage() {
   const { data: pool, isLoading, error } = useCreditPool();
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-neon-green border-t-transparent" />
-      </div>
-    );
+    return <LoadingSpinner />;
   }
 
   if (error || !pool) {
-    return (
-      <div className="rounded-lg border border-red-500/30 bg-surface p-6">
-        <h2 className="mb-2 text-sm font-semibold text-red-400">Failed to load credit pool</h2>
-        <p className="font-mono text-xs text-text-muted">{(error as Error).message}</p>
-      </div>
-    );
+    return <ErrorState title="Failed to load credit pool" message={(error as Error).message} />;
   }
 
   const availablePct = pool.totalBalanceUsd > 0
@@ -59,12 +32,7 @@ export default function CreditPoolPage() {
 
   return (
     <div>
-      <div className="mb-6">
-        <h1 className="text-xl font-bold text-text-primary">Credit Pool</h1>
-        <p className="mt-1 text-sm text-text-secondary">
-          Last updated: {formatDateTime(pool.lastUpdated)}
-        </p>
-      </div>
+      <PageHeader title="Credit Pool" subtitle={`Last updated: ${formatDateTime(pool.lastUpdated)}`} />
 
       {/* Total balance */}
       <div className="mb-8 rounded-lg border border-gray-800 bg-surface p-8 text-center">

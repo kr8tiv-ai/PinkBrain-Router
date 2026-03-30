@@ -2,35 +2,8 @@ import { useParams, useNavigate, Link } from 'react-router';
 import { useRun, useResumeRun } from '@/api';
 import { RunStateBadge } from '@/components/StatusBadge';
 import { PhaseTimeline } from '@/components/PhaseTimeline';
-
-function formatDateTime(iso: string | null): string {
-  if (!iso) return '—';
-  return new Date(iso).toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-  });
-}
-
-function formatUsd(val: number | null): string {
-  if (val === null || val === undefined) return '—';
-  return `$${val.toFixed(2)}`;
-}
-
-function formatDuration(start: string, end: string | null): string {
-  const ms = new Date(end ?? new Date().toISOString()).getTime() - new Date(start).getTime();
-  const seconds = Math.floor(ms / 1000);
-  if (seconds < 60) return `${seconds}s`;
-  const minutes = Math.floor(seconds / 60);
-  const remainingSeconds = seconds % 60;
-  if (minutes < 60) return `${minutes}m ${remainingSeconds}s`;
-  const hours = Math.floor(minutes / 60);
-  const remainingMinutes = minutes % 60;
-  return `${hours}h ${remainingMinutes}m`;
-}
+import { LoadingSpinner, ErrorState } from '@/components/ui';
+import { formatUsd, formatDateTime, formatDuration, truncateId } from '@/lib/format';
 
 export default function RunDetail() {
   const { id } = useParams<{ id: string }>();
@@ -39,27 +12,11 @@ export default function RunDetail() {
   const resumeRun = useResumeRun();
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-neon-green border-t-transparent" />
-      </div>
-    );
+    return <LoadingSpinner />;
   }
 
   if (error || !run) {
-    return (
-      <div className="rounded-lg border border-red-500/30 bg-surface p-6">
-        <h2 className="mb-2 text-sm font-semibold text-red-400">Failed to load run</h2>
-        <p className="font-mono text-xs text-text-muted">{(error as Error)?.message ?? 'Not found'}</p>
-        <button
-          type="button"
-          onClick={() => navigate('/runs')}
-          className="mt-4 text-sm text-neon-green transition hover:brightness-110"
-        >
-          &larr; Back to runs
-        </button>
-      </div>
-    );
+    return <ErrorState title="Failed to load run" message={(error as Error)?.message ?? 'Not found'} backTo="/runs" backLabel="Back to runs" />;
   }
 
   return (
@@ -163,16 +120,16 @@ export default function RunDetail() {
           <DetailCard label="Started At" value={formatDateTime(run.startedAt)} />
           <DetailCard label="Finished At" value={formatDateTime(run.finishedAt)} />
           {run.claimedTxSignature && (
-            <DetailCard label="Claim Tx" value={truncateTx(run.claimedTxSignature)} mono />
+            <DetailCard label="Claim Tx" value={truncateId(run.claimedTxSignature, 10)} mono />
           )}
           {run.swapTxSignature && (
-            <DetailCard label="Swap Tx" value={truncateTx(run.swapTxSignature)} mono />
+            <DetailCard label="Swap Tx" value={truncateId(run.swapTxSignature, 10)} mono />
           )}
           {run.bridgeTxHash && (
-            <DetailCard label="Bridge Tx" value={truncateTx(run.bridgeTxHash)} mono />
+            <DetailCard label="Bridge Tx" value={truncateId(run.bridgeTxHash, 10)} mono />
           )}
           {run.fundingTxHash && (
-            <DetailCard label="Funding Tx" value={truncateTx(run.fundingTxHash)} mono />
+            <DetailCard label="Funding Tx" value={truncateId(run.fundingTxHash, 10)} mono />
           )}
         </div>
       </div>
@@ -196,9 +153,4 @@ function DetailCard({ label, value, mono }: { label: string; value: string; mono
       <dd className={`mt-1 text-sm text-text-primary ${mono ? 'font-mono' : ''}`}>{value}</dd>
     </div>
   );
-}
-
-function truncateTx(tx: string): string {
-  if (tx.length <= 16) return tx;
-  return `${tx.slice(0, 10)}...${tx.slice(-6)}`;
 }

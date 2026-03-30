@@ -3,21 +3,8 @@ import { useParams, useNavigate } from 'react-router';
 import { useKey, useUsageKey } from '@/api';
 import { ProgressBar } from '@/components/ProgressBar';
 import { UsageChart } from '@/components/UsageChart';
-
-function formatDate(iso: string | null): string {
-  if (!iso) return '—';
-  return new Date(iso).toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-}
-
-function formatUsd(val: number): string {
-  return `$${val.toFixed(2)}`;
-}
+import { LoadingSpinner, ErrorState } from '@/components/ui';
+import { formatDate, formatUsd } from '@/lib/format';
 
 export default function KeyDetail() {
   const { hash } = useParams<{ hash: string }>();
@@ -27,27 +14,11 @@ export default function KeyDetail() {
   const [chartMode, setChartMode] = useState<'all' | 'daily' | 'weekly' | 'monthly'>('all');
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-neon-green border-t-transparent" />
-      </div>
-    );
+    return <LoadingSpinner />;
   }
 
   if (error || !key) {
-    return (
-      <div className="rounded-lg border border-red-500/30 bg-surface p-6">
-        <h2 className="mb-2 text-sm font-semibold text-red-400">Failed to load key</h2>
-        <p className="font-mono text-xs text-text-muted">{(error as Error)?.message ?? 'Not found'}</p>
-        <button
-          type="button"
-          onClick={() => navigate('/keys')}
-          className="mt-4 text-sm text-neon-green transition hover:brightness-110"
-        >
-          &larr; Back to keys
-        </button>
-      </div>
-    );
+    return <ErrorState title="Failed to load key" message={(error as Error)?.message ?? 'Not found'} backTo="/keys" backLabel="Back to keys" />;
   }
 
   const usagePct = key.limit > 0 ? (key.usage / key.limit) * 100 : 0;
