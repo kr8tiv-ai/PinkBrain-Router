@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router';
 import { useStrategy, useRuns, useStrategyKeys, useTriggerRun, useDeleteStrategy, useEnableStrategy, useDisableStrategy, ApiClientError } from '@/api';
 import { StatusBadge, RunStateBadge } from '@/components/StatusBadge';
 import { LoadingSpinner, ErrorState } from '@/components/ui';
 import { formatUsd, formatDate, truncateId } from '@/lib/format';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 
 const KEY_STATUS_COLORS: Record<string, string> = {
   ACTIVE: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
@@ -24,6 +25,7 @@ function KeyStatusBadge({ status }: { status: string }) {
 export default function StrategyDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  useDocumentTitle(id ? `Strategy ${id.slice(0, 8)} — PinkBrain Router` : 'Strategy — PinkBrain Router');
   const { data: strategy, isLoading, error } = useStrategy(id);
   const { data: runs } = useRuns(id);
   const { data: keys } = useStrategyKeys(id);
@@ -32,6 +34,18 @@ export default function StrategyDetail() {
   const enableStrategy = useEnableStrategy(id!);
   const disableStrategy = useDisableStrategy(id!);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const cancelBtnRef = useRef<HTMLButtonElement>(null);
+
+  // Modal: Escape dismiss + auto-focus cancel button
+  useEffect(() => {
+    if (!showDeleteConfirm) return;
+    cancelBtnRef.current?.focus();
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setShowDeleteConfirm(false);
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [showDeleteConfirm]);
 
   const isConflict = triggerRun.isError && triggerRun.error instanceof ApiClientError && triggerRun.error.status === 409;
 
@@ -267,7 +281,15 @@ export default function StrategyDetail() {
 
       {/* Delete confirmation modal */}
       {showDeleteConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Delete strategy confirmation"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setShowDeleteConfirm(false);
+          }}
+        >
           <div className="w-full max-w-sm rounded-lg border border-gray-700 bg-surface p-6">
             <h3 className="mb-2 text-sm font-semibold text-text-primary">Delete Strategy</h3>
             <p className="mb-6 text-sm text-text-secondary">
@@ -275,6 +297,7 @@ export default function StrategyDetail() {
             </p>
             <div className="flex justify-end gap-2">
               <button
+                ref={cancelBtnRef}
                 type="button"
                 onClick={() => setShowDeleteConfirm(false)}
                 className="rounded border border-gray-700 px-4 py-2 text-sm text-text-secondary transition hover:bg-surface-raised"

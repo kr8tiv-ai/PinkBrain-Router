@@ -3,11 +3,13 @@ import { useParams, useNavigate } from 'react-router';
 import { useKey, useUsageKey } from '@/api';
 import { ProgressBar } from '@/components/ProgressBar';
 import { UsageChart } from '@/components/UsageChart';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { LoadingSpinner, ErrorState } from '@/components/ui';
 import { formatDate, formatUsd } from '@/lib/format';
 
 export default function KeyDetail() {
   const { hash } = useParams<{ hash: string }>();
+  useDocumentTitle(hash ? `Key ${hash.slice(0, 8)} — PinkBrain Router` : 'Key — PinkBrain Router');
   const navigate = useNavigate();
   const { data: key, isLoading, error } = useKey(hash);
   const { data: snapshots } = useUsageKey(hash, 200);

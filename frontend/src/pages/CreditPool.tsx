@@ -2,6 +2,7 @@ import { useCreditPool } from '@/api';
 import { ProgressBar } from '@/components/ProgressBar';
 import { LoadingSpinner, ErrorState, PageHeader } from '@/components/ui';
 import { formatUsd, formatDateTime } from '@/lib/format';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 
 function getAvailabilityColor(availablePct: number): 'green' | 'yellow' | 'red' {
   if (availablePct > 20) return 'green';
@@ -16,6 +17,7 @@ function getAvailabilityTextColor(availablePct: number): string {
 }
 
 export default function CreditPoolPage() {
+  useDocumentTitle('Credit Pool — PinkBrain Router');
   const { data: pool, isLoading, error } = useCreditPool();
 
   if (isLoading) {

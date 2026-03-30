@@ -1,6 +1,7 @@
 import { useStats } from '@/api';
 import { LoadingSpinner, ErrorState, PageHeader } from '@/components/ui';
 import { formatUsd } from '@/lib/format';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 
 function formatSol(val: number): string {
   return `${val.toFixed(4)} SOL`;
@@ -22,6 +23,7 @@ function StatCard({ label, value, accent = 'text-text-primary' }: StatCardProps)
 }
 
 export default function StatsPage() {
+  useDocumentTitle('Stats — PinkBrain Router');
   const { data: stats, isLoading, error } = useStats();
 
   if (isLoading) {

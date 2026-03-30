@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { useAuth } from '@/hooks/useAuth';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 
 export default function TokenInput() {
+  useDocumentTitle('Token Input — PinkBrain Router');
   const { setToken } = useAuth();
   const navigate = useNavigate();
   const [value, setValue] = useState('');

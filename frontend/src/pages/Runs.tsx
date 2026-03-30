@@ -3,8 +3,10 @@ import { useRuns, useStrategies, useTriggerRun, useResumeRun, ApiClientError } f
 import { RunStateBadge } from '@/components/StatusBadge';
 import { LoadingSpinner, EmptyState, ErrorState } from '@/components/ui';
 import { formatUsd, formatDateTime, truncateId } from '@/lib/format';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 
 export default function RunsPage() {
+  useDocumentTitle('Runs — PinkBrain Router');
   const [searchParams, setSearchParams] = useSearchParams();
   const strategyId = searchParams.get('strategyId') ?? undefined;
   const { data: strategies } = useStrategies();

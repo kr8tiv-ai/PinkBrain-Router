@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router';
 import { useCreateStrategy } from '@/api';
 import type { FeeSourceType, DistributionMode, KeyLimitReset, CreateStrategyPayload } from '@/api/types';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 
 const SOURCES: FeeSourceType[] = ['CLAIMABLE_POSITIONS', 'PARTNER_FEES'];
 const DISTRIBUTIONS: DistributionMode[] = [
@@ -23,6 +24,7 @@ interface FormErrors {
 }
 
 export default function StrategyCreate() {
+  useDocumentTitle('New Strategy — PinkBrain Router');
   const navigate = useNavigate();
   const createStrategy = useCreateStrategy();
 

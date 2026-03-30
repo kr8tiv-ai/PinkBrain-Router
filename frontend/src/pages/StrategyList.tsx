@@ -1,14 +1,30 @@
 import { Link } from 'react-router';
 import { useStrategies } from '@/api';
 import { StatusBadge } from '@/components/StatusBadge';
-import { LoadingSpinner, EmptyState, ErrorState } from '@/components/ui';
+import { CardSkeleton, EmptyState, ErrorState } from '@/components/ui';
 import { formatDate, truncateId } from '@/lib/format';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 
 export default function StrategyList() {
+  useDocumentTitle('Strategies — PinkBrain Router');
   const { data: strategies, isLoading, error } = useStrategies();
 
   if (isLoading) {
-    return <LoadingSpinner />;
+    return (
+      <div>
+        <div className="mb-6 flex items-center justify-between">
+          <div>
+            <div className="h-6 w-28 animate-pulse rounded bg-gray-800" />
+            <div className="mt-1 h-4 w-40 animate-pulse rounded bg-gray-800" />
+          </div>
+        </div>
+        <div className="grid gap-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <CardSkeleton key={i} />
+          ))}
+        </div>
+      </div>
+    );
   }
 
   if (error) {

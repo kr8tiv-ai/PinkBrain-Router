@@ -2,10 +2,12 @@ import { useState } from 'react';
 import { Link } from 'react-router';
 import { useKeys } from '@/api';
 import { ProgressBar } from '@/components/ProgressBar';
-import { LoadingSpinner, EmptyState, ErrorState } from '@/components/ui';
+import { CardSkeleton, EmptyState, ErrorState } from '@/components/ui';
 import { formatDate, truncateId } from '@/lib/format';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 
 export default function KeysPage() {
+  useDocumentTitle('API Keys — PinkBrain Router');
   const { data: keys, isLoading, error } = useKeys();
   const [showDisabled, setShowDisabled] = useState<'all' | 'active' | 'disabled'>('all');
 
@@ -16,7 +18,21 @@ export default function KeysPage() {
   });
 
   if (isLoading) {
-    return <LoadingSpinner />;
+    return (
+      <div>
+        <div className="mb-6 flex items-center justify-between">
+          <div>
+            <div className="h-6 w-24 animate-pulse rounded bg-gray-800" />
+            <div className="mt-1 h-4 w-16 animate-pulse rounded bg-gray-800" />
+          </div>
+        </div>
+        <div className="grid gap-4">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <CardSkeleton key={i} />
+          ))}
+        </div>
+      </div>
+    );
   }
 
   if (error) {

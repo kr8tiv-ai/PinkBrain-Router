@@ -1,6 +1,7 @@
 import { useHealth } from '@/api';
 import { LoadingSpinner, ErrorState } from '@/components/ui';
 import { formatDateTime } from '@/lib/format';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 
 function formatUptime(seconds: number): string {
   if (seconds < 60) return `${seconds}s`;
@@ -51,6 +52,7 @@ function DependencyCard({
 }
 
 export default function HealthPage() {
+  useDocumentTitle('Health — PinkBrain Router');
   const { data: health, isLoading, error } = useHealth();
 
   if (isLoading) {

@@ -3,10 +3,12 @@ import { useRun, useResumeRun } from '@/api';
 import { RunStateBadge } from '@/components/StatusBadge';
 import { PhaseTimeline } from '@/components/PhaseTimeline';
 import { LoadingSpinner, ErrorState } from '@/components/ui';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { formatUsd, formatDateTime, formatDuration, truncateId } from '@/lib/format';
 
 export default function RunDetail() {
   const { id } = useParams<{ id: string }>();
+  useDocumentTitle(id ? `Run ${id.slice(0, 8)} — PinkBrain Router` : 'Run — PinkBrain Router');
   const navigate = useNavigate();
   const { data: run, isLoading, error, refetch } = useRun(id);
   const resumeRun = useResumeRun();
