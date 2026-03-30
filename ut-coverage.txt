@@ -1,0 +1,21 @@
+
+[1m[46m RUN [49m[22m [36mv4.1.2 [39m[90mC:/Users/lucid/Desktop/PinkBrain Router git[39m
+      [2mCoverage enabled with [22m[33mv8[39m
+
+ [32m✓[39m backend/tests/usage-tracking.test.ts [2m([22m[2m18 tests[22m[2m)[22m[32m 244[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m1 passed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[32m18 passed[39m[22m[90m (18)[39m
+[2m   Start at [22m 01:17:34
+[2m   Duration [22m 810ms[2m (transform 161ms, setup 0ms, import 189ms, tests 244ms, environment 0ms)[22m
+
+[34m % [39m[2mCoverage report from [22m[33mv8[39m
+-------------------|---------|----------|---------|---------|-------------------
+File               | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s 
+-------------------|---------|----------|---------|---------|-------------------
+All files          |   48.45 |    21.95 |   44.44 |   47.91 |                   
+ clients           |   10.71 |        0 |    9.09 |   10.71 |                   
+  ...uterClient.ts |   10.71 |        0 |    9.09 |   10.71 | 102-240           
+ services          |     100 |      100 |     100 |     100 |                   
+  ...ingService.ts |     100 |      100 |     100 |     100 |                   
+-------------------|---------|----------|---------|---------|-------------------

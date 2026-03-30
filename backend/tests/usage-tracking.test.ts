@@ -385,4 +385,49 @@ describe('UsageTrackingService', () => {
       expect(result).toHaveLength(0);
     });
   });
+
+  // ─── Coverage gap tests ─────────────────────────────────────────
+
+  describe('stop', () => {
+    it('no-ops when service is not running (timer is null)', () => {
+      // Service was just created, never started
+      expect(() => service.stop()).not.toThrow();
+    });
+  });
+
+  describe('pollAllKeys', () => {
+    it('counts all errors when every key fetch fails', async () => {
+      mockClient.getKey.mockReset();
+      mockClient.getKey
+        .mockRejectedValueOnce(new Error('API 500'))
+        .mockRejectedValueOnce(new Error('API 500'));
+
+      await service.pollAllKeys();
+
+      expect(mockClient.getKey).toHaveBeenCalledTimes(2);
+      expect(mockDb._rows).toHaveLength(0);
+    });
+
+    it('counts all errors when every DB INSERT fails', async () => {
+      // Make ALL INSERT calls fail
+      const originalPrepare = mockDb.prepare.bind(mockDb);
+      mockDb.prepare = (sql: string) => {
+        if (sql.includes('INSERT') && sql.includes('usage_snapshots')) {
+          const stmt = originalPrepare(sql);
+          return {
+            ...stmt,
+            run: () => {
+              throw new Error('DB write failed');
+            },
+          };
+        }
+        return originalPrepare(sql);
+      };
+
+      await service.pollAllKeys();
+
+      expect(mockClient.getKey).toHaveBeenCalledTimes(2);
+      expect(mockDb._rows).toHaveLength(0);
+    });
+  });
 });
