@@ -5,6 +5,10 @@ export {
   useStrategies,
   useStrategy,
   useCreateStrategy,
+  useUpdateStrategy,
+  useDeleteStrategy,
+  useEnableStrategy,
+  useDisableStrategy,
 } from './strategies';
 
 export {
@@ -20,7 +24,8 @@ export {
   useStrategyKeys,
 } from './keys';
 
-export { useCreditPool } from './credit-pool';
+export { useCreditPool, useCreditPoolHistory } from './credit-pool';
+export type { PoolHistoryEntry } from './credit-pool';
 
 export {
   useUsageKey,
@@ -39,6 +44,7 @@ export type {
   KeyConfig,
   Strategy,
   CreateStrategyPayload,
+  UpdateStrategyPayload,
   RunError,
   CreditRun,
   UserKey,

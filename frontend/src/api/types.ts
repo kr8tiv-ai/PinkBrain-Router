@@ -65,6 +65,17 @@ export interface CreateStrategyPayload {
   minClaimThreshold?: number;
 }
 
+export interface UpdateStrategyPayload {
+  distribution?: DistributionMode;
+  distributionTopN?: number;
+  keyConfig?: Partial<KeyConfig>;
+  creditPoolReservePct?: number;
+  exclusionList?: string[];
+  schedule?: string;
+  minClaimThreshold?: number;
+  status?: StrategyStatus;
+}
+
 // ─── CreditRun ────────────────────────────────────────────────
 
 export interface RunError {
@@ -102,6 +113,8 @@ export interface UserKey {
   openrouterKeyHash: string;
   spendingLimitUsd: number;
   currentUsageUsd: number;
+  totalAllocatedUsd: number | null;
+  lastSyncedAt: string | null;
   status: 'ACTIVE' | 'EXHAUSTED' | 'EXPIRED' | 'REVOKED';
   createdAt: string;
   updatedAt: string;
