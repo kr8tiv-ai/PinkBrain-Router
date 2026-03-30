@@ -38,6 +38,52 @@ export interface AccountCredits {
   total_usage: number;
 }
 
+export interface CallData {
+  deadline: string;
+  fee_amount: string;
+  id: string;
+  operator: string;
+  prefix: string;
+  recipient: string;
+  recipient_amount: string;
+  recipient_currency: string;
+  refund_destination: string;
+  signature: string;
+}
+
+export interface TransferIntentMetadata {
+  chain_id: number;
+  contract_address: string;
+  sender: string;
+}
+
+export interface TransferIntent {
+  call_data: CallData;
+  metadata: TransferIntentMetadata;
+}
+
+export interface Web3Data {
+  transfer_intent: TransferIntent;
+  metadata: Record<string, unknown>;
+}
+
+export interface CoinbaseChargeData {
+  id: string;
+  created_at: string;
+  expires_at: string;
+  web3_data: Web3Data;
+}
+
+export interface CreateCoinbaseChargeRequest {
+  amount: number;
+  sender: string;
+  chain_id: number;
+}
+
+export interface CoinbaseChargeResponse {
+  data: CoinbaseChargeData;
+}
+
 export class OpenRouterError extends Error {
   constructor(
     message: string,
@@ -93,6 +139,24 @@ export class OpenRouterClient {
             message || 'Rate limit exceeded',
             status,
             body?.code ?? 'RATE_LIMITED',
+          );
+        }
+
+        if (status === 400) {
+          logger.warn({ status, message }, 'OpenRouter invalid request');
+          throw new OpenRouterError(
+            message || 'Invalid request',
+            status,
+            body?.code ?? 'INVALID_REQUEST',
+          );
+        }
+
+        if (status === 500) {
+          logger.error({ status, message }, 'OpenRouter server error');
+          throw new OpenRouterError(
+            message || 'Internal server error',
+            status,
+            body?.code ?? 'SERVER_ERROR',
           );
         }
 
@@ -156,6 +220,23 @@ export class OpenRouterClient {
       { totalCredits: response.data.total_credits, totalUsage: response.data.total_usage },
       'Retrieved account credits',
     );
+    return response.data;
+  }
+
+  async createCoinbaseCharge(
+    params: CreateCoinbaseChargeRequest,
+  ): Promise<CoinbaseChargeResponse> {
+    logger.debug(
+      { amount: params.amount, sender: params.sender, chainId: params.chain_id },
+      'Creating Coinbase charge',
+    );
+
+    const response = await this.client.post<CoinbaseChargeResponse>('/credits/coinbase', params, {
+      timeout: 300_000, // 5 minutes
+    });
+
+    const { id, expires_at } = response.data.data;
+    logger.info({ chargeId: id, expiresAt: expires_at }, 'Coinbase charge created');
     return response.data;
   }
 }

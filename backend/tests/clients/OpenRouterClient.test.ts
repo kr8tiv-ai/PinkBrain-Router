@@ -4,7 +4,10 @@ import {
   OpenRouterClient,
   OpenRouterError,
 } from '../../src/clients/OpenRouterClient.js';
-import type { KeyData } from '../../src/clients/OpenRouterClient.js';
+import type {
+  KeyData,
+  CoinbaseChargeResponse,
+} from '../../src/clients/OpenRouterClient.js';
 
 vi.mock('axios');
 vi.mock('pino', () => ({
@@ -184,6 +187,75 @@ describe('OpenRouterClient', () => {
     });
   });
 
+  describe('createCoinbaseCharge', () => {
+    const mockChargeResponse: CoinbaseChargeResponse = {
+      data: {
+        id: 'charge_abc123',
+        created_at: '2025-01-20T00:00:00Z',
+        expires_at: '2025-01-20T00:05:00Z',
+        web3_data: {
+          transfer_intent: {
+            call_data: {
+              deadline: '1740000000',
+              fee_amount: '100',
+              id: 'charge_abc123',
+              operator: '0xOperatorAddress',
+              prefix: '0x',
+              recipient: '0xRecipientAddress',
+              recipient_amount: '1000000',
+              recipient_currency: 'USDC',
+              refund_destination: '0xRefundAddress',
+              signature: '0xCalldataSignature',
+            },
+            metadata: {
+              chain_id: 8453,
+              contract_address: '0xContractAddress',
+              sender: '0xSenderAddress',
+            },
+          },
+          metadata: {},
+        },
+      },
+    };
+
+    it('posts to /credits/coinbase with amount, sender, chain_id and returns typed response', async () => {
+      mockInstance.post.mockResolvedValue({ data: mockChargeResponse });
+
+      const result = await client.createCoinbaseCharge({
+        amount: 10.0,
+        sender: '0xSenderAddress',
+        chain_id: 8453,
+      });
+
+      expect(mockInstance.post).toHaveBeenCalledWith(
+        '/credits/coinbase',
+        { amount: 10.0, sender: '0xSenderAddress', chain_id: 8453 },
+        { timeout: 300_000 },
+      );
+      expect(result.data.id).toBe('charge_abc123');
+      expect(result.data.expires_at).toBe('2025-01-20T00:05:00Z');
+      expect(result.data.web3_data.transfer_intent.call_data.signature).toBe('0xCalldataSignature');
+      expect(result.data.web3_data.transfer_intent.metadata.chain_id).toBe(8453);
+      expect(result.data.web3_data.transfer_intent.metadata.contract_address).toBe('0xContractAddress');
+    });
+
+    it('sets timeout to 5 minutes (300000ms)', async () => {
+      mockInstance.post.mockResolvedValue({ data: mockChargeResponse });
+
+      await client.createCoinbaseCharge({
+        amount: 5.0,
+        sender: '0xSenderAddress',
+        chain_id: 8453,
+      });
+
+      expect(mockInstance.post).toHaveBeenCalledWith(
+        '/credits/coinbase',
+        expect.any(Object),
+        { timeout: 300_000 },
+      );
+    });
+  });
+
   describe('error handling', () => {
     function getErrorInterceptor(): (err: any) => Promise<any> {
       let interceptor: (err: any) => any;
@@ -269,19 +341,65 @@ describe('OpenRouterClient', () => {
       }
     });
 
-    it('passes through non-handled errors', async () => {
+    it('rejects 400 with OpenRouterError INVALID_REQUEST', async () => {
+      const interceptor = getErrorInterceptor();
+
+      const axiosError = {
+        response: {
+          status: 400,
+          data: { error: { message: 'Invalid amount', code: 'INVALID_REQUEST' } },
+        },
+        message: 'Request failed with status code 400',
+        config: {},
+      } as any;
+
+      try {
+        await interceptor(axiosError);
+        expect.unreachable('Should have thrown');
+      } catch (err) {
+        expect(err).toBeInstanceOf(OpenRouterError);
+        expect((err as OpenRouterError).status).toBe(400);
+        expect((err as OpenRouterError).code).toBe('INVALID_REQUEST');
+        expect((err as OpenRouterError).message).toBe('Invalid amount');
+      }
+    });
+
+    it('rejects 500 with OpenRouterError SERVER_ERROR', async () => {
       const interceptor = getErrorInterceptor();
 
       const axiosError = {
         response: {
           status: 500,
-          data: { error: { message: 'Internal server error' } },
+          data: { error: { message: 'Internal server error', code: 'SERVER_ERROR' } },
         },
         message: 'Request failed with status code 500',
         config: {},
       } as any;
 
-      // 500 is not explicitly handled, so it should pass through as a rejected promise
+      try {
+        await interceptor(axiosError);
+        expect.unreachable('Should have thrown');
+      } catch (err) {
+        expect(err).toBeInstanceOf(OpenRouterError);
+        expect((err as OpenRouterError).status).toBe(500);
+        expect((err as OpenRouterError).code).toBe('SERVER_ERROR');
+        expect((err as OpenRouterError).message).toBe('Internal server error');
+      }
+    });
+
+    it('passes through non-handled errors', async () => {
+      const interceptor = getErrorInterceptor();
+
+      const axiosError = {
+        response: {
+          status: 502,
+          data: { error: { message: 'Bad gateway' } },
+        },
+        message: 'Request failed with status code 502',
+        config: {},
+      } as any;
+
+      // 502 is not explicitly handled, so it should pass through as a rejected promise
       await expect(interceptor(axiosError)).rejects.toEqual(axiosError);
     });
   });
