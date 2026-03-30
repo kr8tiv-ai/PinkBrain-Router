@@ -24,7 +24,6 @@
     "@fastify/cors": "^11.0.0",
     "@fastify/rate-limit": "^10.3.0",
     "@fastify/sensible": "^6.0.4",
-    "@solana/spl-token": "^0.4.13",
     "@solana/web3.js": "^1.95.0",
     "axios": "^1.14.0",
     "bn.js": "^5.2.1",

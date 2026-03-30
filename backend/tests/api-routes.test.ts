@@ -938,7 +938,7 @@ describe('Wallet Key Routes', () => {
       headers: AUTH_HEADER,
     });
     expect(res.statusCode).toBe(500);
-    expect(res.json().error).toContain('Failed to create new key');
+    expect(res.json().error).not.toContain('API error'); // error detail sanitized by centralized handler
     await app.close();
   });
 
