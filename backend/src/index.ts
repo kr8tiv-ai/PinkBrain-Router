@@ -196,6 +196,10 @@ async function main() {
   // Start scheduler
   await schedulerService.start();
 
+  // Start usage tracking
+  usageTrackingService.start();
+  logger.info('UsageTrackingService started');
+
   // Start HTTP server
   const address = await app.listen({ port: config.port, host: '0.0.0.0' });
 
@@ -224,6 +228,9 @@ async function main() {
     } catch (err) {
       app.log.error({ err: err instanceof Error ? err.message : String(err) }, 'Error stopping scheduler');
     }
+
+    usageTrackingService.stop();
+    app.log.info('UsageTrackingService stopped');
 
     runLock.releaseAll();
     app.log.info('Run locks released');
