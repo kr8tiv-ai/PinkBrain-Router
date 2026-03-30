@@ -181,6 +181,12 @@ const mockResolveHolders = vi.fn().mockResolvedValue([
 
 // ─── Mock DistributionService ───────────────────────────────────
 
+const mockAllocationSnapshots = [
+  { holderWallet: 'holder-1', tokenBalance: '1000000', allocationWeight: 0.57, allocatedUsd: 108.3 },
+  { holderWallet: 'holder-2', tokenBalance: '500000', allocationWeight: 0.28, allocatedUsd: 53.2 },
+  { holderWallet: 'holder-3', tokenBalance: '250000', allocationWeight: 0.14, allocatedUsd: 28.5 },
+];
+
 const mockDistributionService = {
   allocate: vi.fn().mockResolvedValue({
     snapshotId: 'snap-1',
@@ -188,14 +194,10 @@ const mockDistributionService = {
     holderCount: 3,
     totalAllocatedUsd: 190,
     allocationMode: 'TOP_N_HOLDERS',
-    allocations: [
-      { holderWallet: 'holder-1', tokenBalance: '1000000', allocationWeight: 0.57, allocatedUsd: 108.3 },
-      { holderWallet: 'holder-2', tokenBalance: '500000', allocationWeight: 0.28, allocatedUsd: 53.2 },
-      { holderWallet: 'holder-3', tokenBalance: '250000', allocationWeight: 0.14, allocatedUsd: 28.5 },
-    ],
+    allocations: mockAllocationSnapshots,
     skippedHolders: 0,
   }),
-  getSnapshotsByRun: vi.fn().mockReturnValue([]),
+  getSnapshotsByRun: vi.fn().mockReturnValue(mockAllocationSnapshots),
 };
 
 // ─── Mock audit service ─────────────────────────────────────────
@@ -297,6 +299,36 @@ const mockKeyManagerService = {
   }),
 };
 
+// ─── Mock CctpBridgeService ─────────────────────────────────────
+
+const mockCctpBridgeService = {
+  isAvailable: vi.fn().mockReturnValue(true),
+  getCircuitBreakerState: vi.fn().mockReturnValue({ state: 'CLOSED', failures: 0, lastFailureAt: null }),
+  bridge: vi.fn().mockResolvedValue({
+    success: true,
+    txHash: 'mock-bridge-tx',
+    amountUsdc: 200,
+    fromChain: 'solana',
+    toChain: 'base',
+    steps: ['burn', 'attestation', 'mint'],
+    state: 'COMPLETE',
+  }),
+};
+
+// ─── Mock CoinbaseChargeService ────────────────────────────────
+
+const mockCoinbaseChargeService = {
+  isAvailable: vi.fn().mockReturnValue(true),
+  fund: vi.fn().mockResolvedValue({
+    success: true,
+    chargeId: 'mock-charge-1',
+    amountFunded: 200,
+    previousBalance: 0,
+    newBalance: 200,
+    dryRun: true,
+  }),
+};
+
 const mockCreditPoolService = {
   getStatus: vi.fn().mockResolvedValue({ balance: 1000, allocated: 190, available: 810, reserve: 100, runway: '120 days' }),
   getPoolState: vi.fn().mockResolvedValue({
@@ -378,12 +410,23 @@ const phaseHandlers = createPhaseHandlerMap({
     signAndSendSwap: mockSignAndSendSwap,
     dryRun: true,
   },
+  bridge: {
+    bridgeService: mockCctpBridgeService as any,
+  },
+  fund: {
+    chargeService: mockCoinbaseChargeService as any,
+    creditPoolService: mockCreditPoolService as any,
+  },
   allocate: {
     distributionService: mockDistributionService as any,
     strategyService: mockStrategyService as any,
     resolveHolders: mockResolveHolders,
   },
-  // bridge, fund, provision use default stubs (no deps)
+  provision: {
+    keyManagerService: mockKeyManagerService as any,
+    distributionService: mockDistributionService as any,
+    strategyService: mockStrategyService as any,
+  },
 });
 
 const executionPolicy = new ExecutionPolicy(testConfig);
@@ -464,20 +507,19 @@ describe('E2E: Full pipeline integration (7 phases)', () => {
     // Phase 2: SWAPPING — must swap SOL to USDC
     expect(body.swappedUsdc).toBeGreaterThan(0);
 
-    // Phase 3: BRIDGING — default stub sets bridgedUsdc = swappedUsdc
+    // Phase 3: BRIDGING — real factory delegates to CctpBridgeService
     expect(body.bridgedUsdc).toBeGreaterThan(0);
 
-    // Phase 4: FUNDING — default stub sets fundedUsdc = bridgedUsdc
+    // Phase 4: FUNDING — real factory delegates to CoinbaseChargeService
     expect(body.fundedUsdc).toBeGreaterThan(0);
 
     // Phase 5: ALLOCATING — must allocate to holders
     expect(body.allocatedUsd).toBeGreaterThan(0);
 
-    // Phase 6: PROVISIONING — default stub provisions keys
+    // Phase 6: PROVISIONING — real factory delegates to KeyManagerService
     expect(body.keysProvisioned).toBeGreaterThan(0);
 
-    // Verify data flow: each phase reads the previous phase's output
-    // The bridge/fund stubs forward swappedUsdc → bridgedUsdc → fundedUsdc
+    // Verify data flow: mock bridge returns swappedUsdc, mock fund returns bridgedUsdc
     expect(body.bridgedUsdc).toBe(body.swappedUsdc);
     expect(body.fundedUsdc).toBe(body.bridgedUsdc);
   });
@@ -545,6 +587,22 @@ describe('E2E: Full pipeline integration (7 phases)', () => {
 
     // Distribution allocate called with the run and strategy
     expect(mockDistributionService.allocate).toHaveBeenCalled();
+
+    // Bridge service called with the swapped USDC amount
+    expect(mockCctpBridgeService.isAvailable).toHaveBeenCalled();
+    expect(mockCctpBridgeService.bridge).toHaveBeenCalledWith(
+      expect.objectContaining({ amountUsdc: expect.any(Number) }),
+    );
+
+    // Fund service called — availability check + pool check + fund
+    expect(mockCoinbaseChargeService.isAvailable).toHaveBeenCalled();
+    expect(mockCoinbaseChargeService.fund).toHaveBeenCalledWith(
+      expect.objectContaining({ runId: RUN_ID, strategyId: STRATEGY_ID }),
+    );
+    expect(mockCreditPoolService.checkAllocation).toHaveBeenCalled();
+
+    // Provision phase called key manager with real allocations from snapshots
+    expect(mockKeyManagerService.provisionKeys).toHaveBeenCalled();
 
     // State transitions logged to audit service (7 transitions: PENDING→CLAIMING→SWAPPING→...→COMPLETE)
     expect(mockAuditService.logTransition).toHaveBeenCalled();

@@ -98,7 +98,7 @@ export function createBridgePhase(deps: BridgePhaseDeps) {
         bridgeTxHash: result.txHash,
         fromChain: result.fromChain,
         toChain: result.toChain,
-        state: result.state,
+        bridgeState: result.state,
         steps: result.steps,
       },
     };
