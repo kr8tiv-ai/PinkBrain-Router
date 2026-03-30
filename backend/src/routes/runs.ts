@@ -26,8 +26,9 @@ export async function runRoutes(
     },
   });
 
-  // POST /runs — trigger a new run for a strategy
+  // POST /runs — trigger a new run for a strategy (rate limited: 5/min)
   app.post('/runs', {
+    config: { rateLimit: { max: 5, timeWindow: '1 minute' } },
     schema: {
       body: {
         type: 'object',

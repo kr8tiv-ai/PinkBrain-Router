@@ -14,8 +14,9 @@ export async function healthRoutes(
   app: FastifyInstance,
   deps: HealthDeps,
 ): Promise<void> {
-  // Liveness probe — always returns 200 if the process is running
+  // Liveness probe — always returns 200 if the process is running (rate limit exempt)
   app.get('/health/live', {
+    config: { rateLimit: false },
     handler: async (_request, reply) => {
       reply.send({
         status: 'ok',
@@ -25,8 +26,9 @@ export async function healthRoutes(
     },
   });
 
-  // Readiness probe — checks dependencies, returns 503 if any are down
+  // Readiness probe — checks dependencies, returns 503 if any are down (rate limit exempt)
   app.get('/health/ready', {
+    config: { rateLimit: false },
     handler: async (_request, reply) => {
       const startTime = Date.now();
 

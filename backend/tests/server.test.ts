@@ -575,3 +575,165 @@ describe('Request logging', () => {
     await app.close();
   });
 });
+
+// ─── CORS configuration tests ───────────────────────────────────
+
+describe('CORS configuration', () => {
+  it('allows all origins by default (corsOrigins not set)', async () => {
+    const deps = createDeps();
+    const app = await buildApp(deps);
+
+    const response = await app.inject({
+      method: 'OPTIONS',
+      url: '/health/live',
+      headers: {
+        origin: 'https://evil-site.com',
+        'access-control-request-method': 'GET',
+      },
+    });
+
+    // With origin: true, the Vary header should be set to Origin
+    // and the response should indicate CORS is allowed
+    expect(response.headers['vary']?.toLowerCase()).toContain('origin');
+    // origin: true echoes the requesting origin back
+    expect(response.headers['access-control-allow-origin']).toBe('https://evil-site.com');
+
+    await app.close();
+  });
+
+  it('restricts origins when corsOrigins is configured', async () => {
+    const deps = createDeps();
+    deps.corsOrigins = 'https://myapp.com,https://admin.myapp.com';
+    const app = await buildApp(deps);
+
+    const response = await app.inject({
+      method: 'OPTIONS',
+      url: '/health/live',
+      headers: {
+        origin: 'https://myapp.com',
+        'access-control-request-method': 'GET',
+      },
+    });
+
+    expect(response.headers['access-control-allow-origin']).toBe('https://myapp.com');
+
+    await app.close();
+  });
+
+  it('rejects non-whitelisted origin when corsOrigins is configured', async () => {
+    const deps = createDeps();
+    deps.corsOrigins = 'https://myapp.com';
+    const app = await buildApp(deps);
+
+    const response = await app.inject({
+      method: 'OPTIONS',
+      url: '/health/live',
+      headers: {
+        origin: 'https://evil-site.com',
+        'access-control-request-method': 'GET',
+      },
+    });
+
+    // Should NOT echo back the non-whitelisted origin
+    expect(response.headers['access-control-allow-origin']).not.toBe('https://evil-site.com');
+
+    await app.close();
+  });
+
+  it('handles empty corsOrigins string as allow-all', async () => {
+    const deps = createDeps();
+    deps.corsOrigins = '';
+    const app = await buildApp(deps);
+
+    const response = await app.inject({
+      method: 'OPTIONS',
+      url: '/health/live',
+      headers: {
+        origin: 'https://any-origin.com',
+        'access-control-request-method': 'GET',
+      },
+    });
+
+    // Empty string should still allow all origins (dev default)
+    expect(response.headers['access-control-allow-origin']).toBe('https://any-origin.com');
+
+    await app.close();
+  });
+});
+
+// ─── Per-route rate limiting tests ──────────────────────────────
+
+describe('Per-route rate limiting', () => {
+  it('health routes bypass rate limiting (max: 0)', async () => {
+    const deps = createDeps();
+    const app = await buildApp(deps);
+
+    // Hit liveness probe many times — should never get rate limited
+    for (let i = 0; i < 110; i++) {
+      const response = await app.inject({
+        method: 'GET',
+        url: '/health/live',
+      });
+      expect(response.statusCode).toBe(200);
+    }
+
+    await app.close();
+  });
+
+  it('readiness probe bypasses rate limiting (max: 0)', async () => {
+    const deps = createDeps();
+    const app = await buildApp(deps);
+
+    for (let i = 0; i < 110; i++) {
+      const response = await app.inject({
+        method: 'GET',
+        url: '/health/ready',
+      });
+      // Could be 200 or 503 depending on mocks, but NOT 429
+      expect(response.statusCode).not.toBe(429);
+    }
+
+    await app.close();
+  });
+
+  it('POST /runs is rate limited to 5 per minute', async () => {
+    const deps = createDeps();
+    const app = await buildApp(deps);
+
+    // Make 6 POST /runs requests — the 6th should be rate limited
+    let lastStatusCode = 0;
+    for (let i = 0; i < 6; i++) {
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/runs',
+        headers: { authorization: `Bearer ${TEST_TOKEN}` },
+        payload: { strategyId: 'test-strategy' },
+      });
+      lastStatusCode = response.statusCode;
+    }
+
+    // At least one request should have been rate limited (429)
+    // or the lock returned 409 — either way, not all succeed with 200
+    // Since lock always acquires, we should see 429 on the 6th
+    expect(lastStatusCode).toBe(429);
+
+    await app.close();
+  });
+
+  it('GET /api routes fall back to global rate limit (100/min)', async () => {
+    const deps = createDeps();
+    const app = await buildApp(deps);
+
+    // GET /api/strategies should work fine under the global 100/min limit
+    for (let i = 0; i < 10; i++) {
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/strategies',
+        headers: { authorization: `Bearer ${TEST_TOKEN}` },
+      });
+      expect(response.statusCode).toBe(200);
+    }
+
+    await app.close();
+  });
+});

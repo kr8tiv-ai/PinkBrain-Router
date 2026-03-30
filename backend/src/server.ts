@@ -13,6 +13,7 @@ export interface ServerDeps extends AllRouteDeps {
   apiAuthToken: string;
   logLevel?: string;
   nodeEnv?: string;
+  corsOrigins?: string;
 }
 
 export async function buildApp(deps: ServerDeps) {
@@ -23,12 +24,20 @@ export async function buildApp(deps: ServerDeps) {
     logger: { level: logLevel },
   });
 
-  // CORS — allow all origins for hackathon
-  await app.register(cors, {
-    origin: true,
-  });
+  // CORS — configurable origins; defaults to allow all when empty (dev-friendly)
+  const corsOriginsRaw = deps.corsOrigins ?? '';
+  const corsOriginsList = corsOriginsRaw
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
 
-  // Rate limiting — 100 requests/minute default
+  const corsConfig: { origin: boolean | string[] } = {
+    origin: corsOriginsList.length > 0 ? corsOriginsList : true,
+  };
+
+  await app.register(cors, corsConfig);
+
+  // Rate limiting — global 100 req/min default
   await app.register(rateLimit, {
     max: 100,
     timeWindow: '1 minute',
@@ -62,15 +71,16 @@ export async function buildApp(deps: ServerDeps) {
       { err: error, method: request.method, url: request.url },
       'Request error',
     );
+    const statusCode = error.statusCode && error.statusCode >= 400 ? error.statusCode : 500;
     const isProduction = nodeEnv === 'production';
-    reply.code(reply.statusCode >= 400 ? reply.statusCode : 500).send({
+    reply.code(statusCode).send({
       error: error.name || 'InternalServerError',
-      statusCode: reply.statusCode >= 400 ? reply.statusCode : 500,
+      statusCode,
       message: isProduction ? 'Internal server error' : (error.message || 'Internal server error'),
     });
   });
 
-  // Health routes at root level — no auth required
+  // Health routes at root level — no auth required, rate limit exempt
   await healthRoutes(app, deps as HealthDeps);
 
   // API routes under /api prefix — auth scoped inside

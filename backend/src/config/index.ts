@@ -62,6 +62,8 @@ const configSchema = z.object({
   
   databasePath: z.string().default('./data/creditbrain.db'),
   
+  corsOrigins: z.string().default(''),
+  
   logLevel: z.enum(['debug', 'info', 'warn', 'error']).default('info'),
   nodeEnv: z.enum(['development', 'production', 'test']).default('development'),
 });
@@ -124,6 +126,7 @@ export function loadConfig(): Config {
     bagsAgentJwt: parseEnvValue(process.env.BAGS_AGENT_JWT),
     bagsAgentWalletAddress: parseEnvValue(process.env.BAGS_AGENT_WALLET_ADDRESS),
     databasePath: process.env.DATABASE_PATH,
+    corsOrigins: process.env.CORS_ORIGINS ?? '',
     logLevel: process.env.LOG_LEVEL,
     nodeEnv: process.env.NODE_ENV,
   };
