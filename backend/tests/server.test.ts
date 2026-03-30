@@ -183,6 +183,56 @@ describe('authHookFactory', () => {
     expect(response.json()).toEqual({ ok: true });
     await app.close();
   });
+
+  it('rejects wrong token of equal length via timing-safe comparison', async () => {
+    // Tokens that differ only by one character but are the same length
+    // should still be rejected — this exercises timingSafeEqual over !==
+    const hook = authHookFactory('aaaaaaaaaaaaaaa');
+    const app = Fastify();
+    app.addHook('preHandler', hook);
+    app.get('/test', async () => ({ ok: true }));
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/test',
+      headers: { authorization: 'Bearer aaaaaaaaaaaaaab' }, // same length, different last char
+    });
+
+    expect(response.statusCode).toBe(401);
+    await app.close();
+  });
+
+  it('rejects wrong token of different length', async () => {
+    const hook = authHookFactory('short');
+    const app = Fastify();
+    app.addHook('preHandler', hook);
+    app.get('/test', async () => ({ ok: true }));
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/test',
+      headers: { authorization: 'Bearer this-is-much-longer' },
+    });
+
+    expect(response.statusCode).toBe(401);
+    await app.close();
+  });
+
+  it('rejects empty bearer token against non-empty expected', async () => {
+    const hook = authHookFactory(TEST_TOKEN);
+    const app = Fastify();
+    app.addHook('preHandler', hook);
+    app.get('/test', async () => ({ ok: true }));
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/test',
+      headers: { authorization: 'Bearer ' },
+    });
+
+    expect(response.statusCode).toBe(401);
+    await app.close();
+  });
 });
 
 // ─── Liveness probe tests ───────────────────────────────────────
