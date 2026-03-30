@@ -166,6 +166,19 @@ export interface UsageSnapshot {
   polledAt: string;
 }
 
+// ─── Stats ───────────────────────────────────────────────────
+
+export interface Stats {
+  totalRuns: number;
+  completedRuns: number;
+  failedRuns: number;
+  totalClaimedSol: number;
+  totalSwappedUsdc: number;
+  totalAllocatedUsd: number;
+  totalKeysProvisioned: number;
+  totalKeysUpdated: number;
+}
+
 // ─── Health ───────────────────────────────────────────────────
 
 export interface HealthResponse {

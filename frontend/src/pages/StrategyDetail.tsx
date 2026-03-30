@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router';
-import { useQueryClient } from '@tanstack/react-query';
 import { useStrategy, useRuns, useStrategyKeys, useTriggerRun, useDeleteStrategy, useEnableStrategy, useDisableStrategy, ApiClientError } from '@/api';
 import { StatusBadge, RunStateBadge } from '@/components/StatusBadge';
 
@@ -39,7 +38,6 @@ function formatUsd(val: number | null): string {
 export default function StrategyDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
   const { data: strategy, isLoading, error } = useStrategy(id);
   const { data: runs } = useRuns(id);
   const { data: keys } = useStrategyKeys(id);

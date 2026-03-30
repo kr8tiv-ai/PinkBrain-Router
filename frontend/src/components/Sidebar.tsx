@@ -7,6 +7,7 @@ const NAV_ITEMS = [
   { to: '/keys', label: 'Keys' },
   { to: '/credit-pool', label: 'Credit Pool' },
   { to: '/health', label: 'Health' },
+  { to: '/stats', label: 'Stats' },
 ];
 
 function truncateWallet(wallet: string): string {

@@ -14,6 +14,7 @@ const KeysPage = lazy(() => import('@/pages/KeyList'));
 const KeyDetail = lazy(() => import('@/pages/KeyDetail'));
 const CreditPoolPage = lazy(() => import('@/pages/CreditPool'));
 const HealthPage = lazy(() => import('@/pages/Health'));
+const StatsPage = lazy(() => import('@/pages/Stats'));
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const { token } = useAuth();
@@ -48,6 +49,7 @@ export default function App() {
               <Route path="keys/:hash" element={<KeyDetail />} />
               <Route path="credit-pool" element={<CreditPoolPage />} />
               <Route path="health" element={<HealthPage />} />
+              <Route path="stats" element={<StatsPage />} />
               <Route path="*" element={<Navigate to="/strategies" replace />} />
             </Routes>
           </Suspense>

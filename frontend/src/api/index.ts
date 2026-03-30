@@ -33,6 +33,7 @@ export {
 } from './usage';
 
 export { useHealth } from './health';
+export { useStats } from './stats';
 
 export type {
   FeeSourceType,
@@ -52,5 +53,6 @@ export type {
   CreditPoolStatus,
   UsageSnapshot,
   HealthResponse,
+  Stats,
   ApiError,
 } from './types';
