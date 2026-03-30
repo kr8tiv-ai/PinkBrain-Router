@@ -103,59 +103,122 @@ export default function RunsPage() {
           }
         />
       ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
-            <thead>
-              <tr className="border-b border-gray-800 text-xs text-text-muted">
-                <th className="pb-2 pr-4 font-medium">Run ID</th>
-                <th className="pb-2 pr-4 font-medium">State</th>
-                <th className="pb-2 pr-4 font-medium">Claimed SOL</th>
-                <th className="pb-2 pr-4 font-medium">Swapped USDC</th>
-                <th className="pb-2 pr-4 font-medium">Bridged USDC</th>
-                <th className="pb-2 pr-4 font-medium">Funded USDC</th>
-                <th className="pb-2 pr-4 font-medium">Allocated USD</th>
-                <th className="pb-2 pr-4 font-medium">Keys</th>
-                <th className="pb-2 pr-4 font-medium">Started</th>
-                <th className="pb-2 font-medium">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {runs.map((r) => (
-                <tr key={r.runId} className="border-b border-gray-800/50 transition hover:bg-surface-raised">
-                  <td className="py-2.5 pr-4">
-                    <Link to={`/runs/${r.runId}`} className="font-mono text-xs text-neon-green hover:brightness-110">
-                      {truncateId(r.runId)}
-                    </Link>
-                  </td>
-                  <td className="py-2.5 pr-4">
-                    <RunStateBadge state={r.state} />
-                  </td>
-                  <td className="py-2.5 pr-4 font-mono text-xs">{formatUsd(r.claimedSol)}</td>
-                  <td className="py-2.5 pr-4 font-mono text-xs">{formatUsd(r.swappedUsdc)}</td>
-                  <td className="py-2.5 pr-4 font-mono text-xs">{formatUsd(r.bridgedUsdc)}</td>
-                  <td className="py-2.5 pr-4 font-mono text-xs">{formatUsd(r.fundedUsdc)}</td>
-                  <td className="py-2.5 pr-4 font-mono text-xs">{formatUsd(r.allocatedUsd)}</td>
-                  <td className="py-2.5 pr-4 font-mono text-xs">
-                    {r.keysProvisioned != null ? `${r.keysProvisioned} / ${r.keysUpdated ?? 0}` : '—'}
-                  </td>
-                  <td className="py-2.5 pr-4 font-mono text-xs text-text-muted">{formatDateTime(r.startedAt)}</td>
-                  <td className="py-2.5">
-                    {r.state === 'FAILED' && (
-                      <button
-                        type="button"
-                        onClick={() => resumeRun.mutate(r.runId)}
-                        disabled={resumeRun.isPending}
-                        className="rounded border border-amber-500/30 px-2 py-1 text-xs text-amber-400 transition hover:border-amber-400 hover:bg-amber-500/10 disabled:opacity-50"
-                      >
-                        {resumeRun.isPending ? 'Resuming...' : 'Resume'}
-                      </button>
-                    )}
-                  </td>
+        <>
+          {/* Desktop table */}
+          <div className="hidden overflow-x-auto md:block">
+            <table className="w-full text-left text-sm">
+              <thead>
+                <tr className="border-b border-gray-800 text-xs text-text-muted">
+                  <th className="pb-2 pr-4 font-medium">Run ID</th>
+                  <th className="pb-2 pr-4 font-medium">State</th>
+                  <th className="pb-2 pr-4 font-medium">Claimed SOL</th>
+                  <th className="hidden pb-2 pr-4 font-medium md:table-cell">Swapped USDC</th>
+                  <th className="hidden pb-2 pr-4 font-medium md:table-cell">Bridged USDC</th>
+                  <th className="hidden pb-2 pr-4 font-medium md:table-cell">Funded USDC</th>
+                  <th className="hidden pb-2 pr-4 font-medium md:table-cell">Allocated USD</th>
+                  <th className="pb-2 pr-4 font-medium">Keys</th>
+                  <th className="hidden pb-2 pr-4 font-medium md:table-cell">Started</th>
+                  <th className="pb-2 font-medium">Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {runs.map((r) => (
+                  <tr key={r.runId} className="border-b border-gray-800/50 transition hover:bg-surface-raised">
+                    <td className="py-2.5 pr-4">
+                      <Link to={`/runs/${r.runId}`} className="font-mono text-xs text-neon-green hover:brightness-110">
+                        {truncateId(r.runId)}
+                      </Link>
+                    </td>
+                    <td className="py-2.5 pr-4">
+                      <RunStateBadge state={r.state} />
+                    </td>
+                    <td className="py-2.5 pr-4 font-mono text-xs">{formatUsd(r.claimedSol)}</td>
+                    <td className="hidden py-2.5 pr-4 font-mono text-xs md:table-cell">{formatUsd(r.swappedUsdc)}</td>
+                    <td className="hidden py-2.5 pr-4 font-mono text-xs md:table-cell">{formatUsd(r.bridgedUsdc)}</td>
+                    <td className="hidden py-2.5 pr-4 font-mono text-xs md:table-cell">{formatUsd(r.fundedUsdc)}</td>
+                    <td className="hidden py-2.5 pr-4 font-mono text-xs md:table-cell">{formatUsd(r.allocatedUsd)}</td>
+                    <td className="py-2.5 pr-4 font-mono text-xs">
+                      {r.keysProvisioned != null ? `${r.keysProvisioned} / ${r.keysUpdated ?? 0}` : '—'}
+                    </td>
+                    <td className="hidden py-2.5 pr-4 font-mono text-xs text-text-muted md:table-cell">{formatDateTime(r.startedAt)}</td>
+                    <td className="py-2.5">
+                      {r.state === 'FAILED' && (
+                        <button
+                          type="button"
+                          onClick={() => resumeRun.mutate(r.runId)}
+                          disabled={resumeRun.isPending}
+                          className="rounded border border-amber-500/30 px-2 py-1 text-xs text-amber-400 transition hover:border-amber-400 hover:bg-amber-500/10 disabled:opacity-50"
+                        >
+                          {resumeRun.isPending ? 'Resuming...' : 'Resume'}
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Mobile card view */}
+          <div className="flex flex-col gap-3 md:hidden">
+            {runs.map((r) => (
+              <Link
+                key={r.runId}
+                to={`/runs/${r.runId}`}
+                className="rounded-lg border border-gray-800 bg-surface p-4 transition hover:border-gray-700"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="font-mono text-xs text-neon-green">{truncateId(r.runId)}</span>
+                  <RunStateBadge state={r.state} />
+                </div>
+                <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+                  <div>
+                    <span className="text-text-muted">Claimed SOL</span>
+                    <div className="font-mono text-text-primary">{formatUsd(r.claimedSol)}</div>
+                  </div>
+                  <div>
+                    <span className="text-text-muted">Keys</span>
+                    <div className="font-mono text-text-primary">
+                      {r.keysProvisioned != null ? `${r.keysProvisioned} / ${r.keysUpdated ?? 0}` : '—'}
+                    </div>
+                  </div>
+                  <div>
+                    <span className="text-text-muted">Swapped</span>
+                    <div className="font-mono text-text-primary">{formatUsd(r.swappedUsdc)}</div>
+                  </div>
+                  <div>
+                    <span className="text-text-muted">Bridged</span>
+                    <div className="font-mono text-text-primary">{formatUsd(r.bridgedUsdc)}</div>
+                  </div>
+                  <div>
+                    <span className="text-text-muted">Funded</span>
+                    <div className="font-mono text-text-primary">{formatUsd(r.fundedUsdc)}</div>
+                  </div>
+                  <div>
+                    <span className="text-text-muted">Allocated</span>
+                    <div className="font-mono text-text-primary">{formatUsd(r.allocatedUsd)}</div>
+                  </div>
+                </div>
+                <div className="mt-2 flex items-center justify-between">
+                  <span className="text-xs text-text-muted">{formatDateTime(r.startedAt)}</span>
+                  {r.state === 'FAILED' && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        resumeRun.mutate(r.runId);
+                      }}
+                      disabled={resumeRun.isPending}
+                      className="rounded border border-amber-500/30 px-2 py-1 text-xs text-amber-400 transition hover:border-amber-400 hover:bg-amber-500/10 disabled:opacity-50"
+                    >
+                      Resume
+                    </button>
+                  )}
+                </div>
+              </Link>
+            ))}
+          </div>
+        </>
       )}
     </div>
   );

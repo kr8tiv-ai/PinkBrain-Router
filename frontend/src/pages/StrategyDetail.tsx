@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import { useParams, useNavigate } from 'react-router';
+import { useParams, useNavigate, Link } from 'react-router';
 import { useStrategy, useRuns, useStrategyKeys, useTriggerRun, useDeleteStrategy, useEnableStrategy, useDisableStrategy, ApiClientError } from '@/api';
 import { StatusBadge, RunStateBadge } from '@/components/StatusBadge';
 import { LoadingSpinner, ErrorState } from '@/components/ui';
-import { formatUsd, formatDate } from '@/lib/format';
+import { formatUsd, formatDate, truncateId } from '@/lib/format';
 
 const KEY_STATUS_COLORS: Record<string, string> = {
   ACTIVE: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
@@ -46,7 +46,7 @@ export default function StrategyDetail() {
   return (
     <div>
       {/* Header */}
-      <div className="mb-6 flex items-center justify-between">
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <button
             type="button"
@@ -70,7 +70,7 @@ export default function StrategyDetail() {
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {strategy.status === 'ACTIVE' ? (
             <button
               type="button"
@@ -167,32 +167,78 @@ export default function StrategyDetail() {
         {!runs || runs.length === 0 ? (
           <p className="py-4 text-center text-sm text-text-muted">No runs yet</p>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead>
-                <tr className="border-b border-gray-800 text-xs text-text-muted">
-                  <th className="pb-2 pr-4 font-medium">Run ID</th>
-                  <th className="pb-2 pr-4 font-medium">State</th>
-                  <th className="pb-2 pr-4 font-medium">Claimed SOL</th>
-                  <th className="pb-2 pr-4 font-medium">Swapped USDC</th>
-                  <th className="pb-2 pr-4 font-medium">Keys</th>
-                  <th className="pb-2 font-medium">Started</th>
-                </tr>
-              </thead>
-              <tbody>
-                {runs.map((r) => (
-                  <tr key={r.runId} className="border-b border-gray-800/50">
-                    <td className="py-2 pr-4 font-mono text-xs text-text-secondary">{r.runId}</td>
-                    <td className="py-2 pr-4"><RunStateBadge state={r.state} /></td>
-                    <td className="py-2 pr-4 font-mono text-xs">{formatUsd(r.claimedSol)}</td>
-                    <td className="py-2 pr-4 font-mono text-xs">{formatUsd(r.swappedUsdc)}</td>
-                    <td className="py-2 pr-4 font-mono text-xs">{r.keysProvisioned ?? '—'}</td>
-                    <td className="py-2 font-mono text-xs text-text-muted">{formatDate(r.startedAt)}</td>
+          <>
+            {/* Desktop table */}
+            <div className="hidden overflow-x-auto md:block">
+              <table className="w-full text-left text-sm">
+                <thead>
+                  <tr className="border-b border-gray-800 text-xs text-text-muted">
+                    <th className="pb-2 pr-4 font-medium">Run ID</th>
+                    <th className="pb-2 pr-4 font-medium">State</th>
+                    <th className="pb-2 pr-4 font-medium">Claimed SOL</th>
+                    <th className="hidden pb-2 pr-4 font-medium md:table-cell">Swapped USDC</th>
+                    <th className="pb-2 pr-4 font-medium">Keys</th>
+                    <th className="hidden pb-2 font-medium md:table-cell">Started</th>
+                    <th className="pb-2 font-medium">Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {runs.map((r) => (
+                    <tr key={r.runId} className="border-b border-gray-800/50">
+                      <td className="py-2 pr-4 font-mono text-xs text-text-secondary">{r.runId}</td>
+                      <td className="py-2 pr-4"><RunStateBadge state={r.state} /></td>
+                      <td className="py-2 pr-4 font-mono text-xs">{formatUsd(r.claimedSol)}</td>
+                      <td className="hidden py-2 pr-4 font-mono text-xs md:table-cell">{formatUsd(r.swappedUsdc)}</td>
+                      <td className="py-2 pr-4 font-mono text-xs">{r.keysProvisioned ?? '—'}</td>
+                      <td className="hidden py-2 font-mono text-xs text-text-muted md:table-cell">{formatDate(r.startedAt)}</td>
+                      <td className="py-2">
+                        <Link
+                          to={`/runs/${r.runId}`}
+                          className="font-mono text-xs text-neon-green hover:brightness-110"
+                        >
+                          View
+                        </Link>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile card view */}
+            <div className="flex flex-col gap-3 md:hidden">
+              {runs.map((r) => (
+                <Link
+                  key={r.runId}
+                  to={`/runs/${r.runId}`}
+                  className="rounded-lg border border-gray-800 bg-surface p-4 transition hover:border-gray-700"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="font-mono text-xs text-neon-green">{truncateId(r.runId)}</span>
+                    <RunStateBadge state={r.state} />
+                  </div>
+                  <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+                    <div>
+                      <span className="text-text-muted">Claimed SOL</span>
+                      <div className="font-mono text-text-primary">{formatUsd(r.claimedSol)}</div>
+                    </div>
+                    <div>
+                      <span className="text-text-muted">Swapped</span>
+                      <div className="font-mono text-text-primary">{formatUsd(r.swappedUsdc)}</div>
+                    </div>
+                    <div>
+                      <span className="text-text-muted">Keys</span>
+                      <div className="font-mono text-text-primary">{r.keysProvisioned ?? '—'}</div>
+                    </div>
+                    <div>
+                      <span className="text-text-muted">Started</span>
+                      <div className="font-mono text-text-primary">{formatDate(r.startedAt)}</div>
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </>
         )}
       </Section>
 

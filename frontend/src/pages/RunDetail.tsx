@@ -22,7 +22,7 @@ export default function RunDetail() {
   return (
     <div>
       {/* Header */}
-      <div className="mb-6 flex items-center justify-between">
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <button
             type="button"
@@ -35,7 +35,7 @@ export default function RunDetail() {
             </svg>
           </button>
           <div>
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-3">
               <span className="font-mono text-sm text-text-primary">{run.runId}</span>
               <RunStateBadge state={run.state} />
             </div>
@@ -47,7 +47,7 @@ export default function RunDetail() {
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
             onClick={() => refetch()}
