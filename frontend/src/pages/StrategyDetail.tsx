@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router';
-import { useStrategy, useRuns, useStrategyKeys, useTriggerRun } from '@/api';
+import { useQueryClient } from '@tanstack/react-query';
+import { useStrategy, useRuns, useStrategyKeys, useTriggerRun, useDeleteStrategy, useEnableStrategy, useDisableStrategy, ApiClientError } from '@/api';
 import { StatusBadge, RunStateBadge } from '@/components/StatusBadge';
 
 const KEY_STATUS_COLORS: Record<string, string> = {
@@ -38,11 +39,17 @@ function formatUsd(val: number | null): string {
 export default function StrategyDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { data: strategy, isLoading, error } = useStrategy(id);
   const { data: runs } = useRuns(id);
   const { data: keys } = useStrategyKeys(id);
   const triggerRun = useTriggerRun();
+  const deleteStrategy = useDeleteStrategy();
+  const enableStrategy = useEnableStrategy(id!);
+  const disableStrategy = useDisableStrategy(id!);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+  const isConflict = triggerRun.isError && triggerRun.error instanceof ApiClientError && triggerRun.error.status === 409;
 
   if (isLoading) {
     return (
@@ -96,6 +103,25 @@ export default function StrategyDetail() {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          {strategy.status === 'ACTIVE' ? (
+            <button
+              type="button"
+              onClick={() => disableStrategy.mutate()}
+              disabled={disableStrategy.isPending}
+              className="rounded border border-amber-500/30 px-3 py-1.5 text-xs text-amber-400 transition hover:border-amber-400 hover:bg-amber-500/10 disabled:opacity-50"
+            >
+              {disableStrategy.isPending ? 'Pausing...' : 'Pause'}
+            </button>
+          ) : strategy.status === 'PAUSED' ? (
+            <button
+              type="button"
+              onClick={() => enableStrategy.mutate()}
+              disabled={enableStrategy.isPending}
+              className="rounded border border-emerald-500/30 px-3 py-1.5 text-xs text-emerald-400 transition hover:border-emerald-400 hover:bg-emerald-500/10 disabled:opacity-50"
+            >
+              {enableStrategy.isPending ? 'Enabling...' : 'Enable'}
+            </button>
+          ) : null}
           <button
             type="button"
             onClick={() => triggerRun.mutate(strategy.strategyId)}
@@ -113,6 +139,18 @@ export default function StrategyDetail() {
           </button>
         </div>
       </div>
+
+      {/* 409 conflict banner */}
+      {isConflict && (
+        <div className="mb-4 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-400">
+          A run is already in progress for this strategy. Wait for it to finish before triggering another.
+        </div>
+      )}
+      {triggerRun.isError && !isConflict && (
+        <div className="mb-4 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-400">
+          {(triggerRun.error as Error)?.message ?? 'Failed to trigger run'}
+        </div>
+      )}
 
       {/* Strategy details grid */}
       <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -232,13 +270,17 @@ export default function StrategyDetail() {
               <button
                 type="button"
                 onClick={() => {
-                  // Delete via API client — for now navigate back
-                  setShowDeleteConfirm(false);
-                  navigate('/strategies');
+                  deleteStrategy.mutate(strategy.strategyId, {
+                    onSuccess: () => {
+                      setShowDeleteConfirm(false);
+                      navigate('/strategies');
+                    },
+                  });
                 }}
-                className="rounded bg-red-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-400"
+                disabled={deleteStrategy.isPending}
+                className="rounded bg-red-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-400 disabled:opacity-50"
               >
-                Delete
+                {deleteStrategy.isPending ? 'Deleting...' : 'Delete'}
               </button>
             </div>
           </div>

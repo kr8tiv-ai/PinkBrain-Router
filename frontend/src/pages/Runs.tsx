@@ -1,5 +1,5 @@
 import { Link, useSearchParams } from 'react-router';
-import { useRuns, useStrategies, useTriggerRun, useResumeRun } from '@/api';
+import { useRuns, useStrategies, useTriggerRun, useResumeRun, ApiClientError } from '@/api';
 import { RunStateBadge } from '@/components/StatusBadge';
 
 function formatDateTime(iso: string | null): string {
@@ -31,6 +31,8 @@ export default function RunsPage() {
   const triggerRun = useTriggerRun();
   const resumeRun = useResumeRun();
 
+  const isConflict = triggerRun.isError && triggerRun.error instanceof ApiClientError && triggerRun.error.status === 409;
+
   const handleStrategyChange = (id: string) => {
     if (id) {
       setSearchParams({ strategyId: id });
@@ -59,6 +61,18 @@ export default function RunsPage() {
           </button>
         )}
       </div>
+
+      {/* 409 conflict banner */}
+      {isConflict && (
+        <div className="mb-4 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-400">
+          A run is already in progress for this strategy. Wait for it to finish before triggering another.
+        </div>
+      )}
+      {triggerRun.isError && !isConflict && (
+        <div className="mb-4 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-400">
+          {(triggerRun.error as Error)?.message ?? 'Failed to trigger run'}
+        </div>
+      )}
 
       {/* Strategy selector */}
       <div className="mb-6">
