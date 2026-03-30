@@ -9,11 +9,11 @@ export async function creditPoolRoutes(
   app: FastifyInstance,
   deps: CreditPoolRouteDeps,
 ): Promise<void> {
-  // GET /credit-pool — get pool status
+  // GET /credit-pool — get pool status (field names match PoolState interface for frontend)
   app.get('/credit-pool', {
     handler: async () => {
-      const status = await deps.creditPoolService.getStatus();
-      return status;
+      const state = await deps.creditPoolService.getPoolState();
+      return state;
     },
   });
 

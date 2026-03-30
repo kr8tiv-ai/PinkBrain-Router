@@ -2,6 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import type { RunService } from '../services/RunService.js';
 import type { StateMachine } from '../engine/StateMachine.js';
 import type { RunLock } from '../engine/RunLock.js';
+import type { CreditRun } from '../types/index.js';
 
 export interface RunRouteDeps {
   runService: RunService;
@@ -104,8 +105,11 @@ export async function runRoutes(
 }
 
 /**
- * Strip sensitive or unnecessary fields from run responses.
+ * Strip large or internal-only fields from run responses.
+ * swapQuoteSnapshot is a full TradeQuote (routePlan, platformFee, etc.) —
+ * several KB per run, unused by the frontend.
  */
-function stripRun<T>(run: T): T {
-  return run;
+function stripRun(run: CreditRun): Omit<CreditRun, 'swapQuoteSnapshot'> {
+  const { swapQuoteSnapshot, ...rest } = run;
+  return rest;
 }
