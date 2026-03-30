@@ -11,6 +11,7 @@
   "dependencies": {
     "@circle-fin/adapter-solana": "^1.5.1",
     "@circle-fin/adapter-viem-v2": "^1.7.0",
-    "@circle-fin/bridge-kit": "^1.7.0"
+    "@circle-fin/bridge-kit": "^1.7.0",
+    "axios": "1.14.0"
   }
 }
