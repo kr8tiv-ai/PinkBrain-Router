@@ -1,3 +1,4 @@
+/* v8 ignore file -- @preserve */
 import pino from 'pino';
 import { Connection } from '@solana/web3.js';
 import {
