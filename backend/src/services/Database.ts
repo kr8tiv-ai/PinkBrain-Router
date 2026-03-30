@@ -2,8 +2,6 @@ import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { migrations } from './migrations/index.js';
 
-const nodeRequire = eval('require') as NodeJS.Require;
-
 export interface StatementLike {
   run(...params: unknown[]): { changes?: number; lastInsertRowid?: unknown };
   get<T = unknown>(...params: unknown[]): T;
@@ -78,9 +76,9 @@ export class Database {
     this.dbPath = dbPath;
   }
 
-  init(): void {
+  async init(): Promise<void> {
     this.ensureDirectory();
-    this.openConnection();
+    await this.openConnection();
     this.configurePragmas();
     this.createMigrationsTable();
     this.runMigrations();
@@ -112,9 +110,9 @@ export class Database {
     }
   }
 
-  private openConnection(): void {
+  private async openConnection(): Promise<void> {
     try {
-      const { DatabaseSync } = nodeRequire('node:sqlite');
+      const { DatabaseSync } = await import('node:sqlite');
       this.db = new NodeSqliteConnection(new DatabaseSync(this.dbPath));
     } catch (err) {
       throw new DatabaseError('open', err as Error, { dbPath: this.dbPath });

@@ -35,7 +35,7 @@ async function main() {
 
   // Database
   const db = new Database({ dbPath: config.databasePath });
-  db.init();
+  await db.init();
   const dbConn = db.getDb();
   logger.info({ path: config.databasePath }, 'Database initialized');
 

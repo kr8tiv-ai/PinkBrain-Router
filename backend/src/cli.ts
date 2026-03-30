@@ -48,7 +48,7 @@ program
     try {
       const config = getConfig();
       const db = new Database({ dbPath: config.databasePath });
-      db.init();
+      await db.init();
 
       const strategyService = new StrategyService(db.getDb());
 
@@ -100,7 +100,7 @@ program
     try {
       const config = getConfig();
       const db = new Database({ dbPath: config.databasePath });
-      db.init();
+      await db.init();
 
       const strategyService = new StrategyService(db.getDb());
       const strategies = strategyService.getAll();
@@ -132,7 +132,7 @@ program
     try {
       const config = getConfig();
       const db = new Database({ dbPath: config.databasePath });
-      db.init();
+      await db.init();
 
       const dbConn = db.getDb();
       const strategyService = new StrategyService(dbConn);
@@ -318,7 +318,7 @@ program
     try {
       const config = getConfig();
       const db = new Database({ dbPath: config.databasePath });
-      db.init();
+      await db.init();
 
       const runService = new RunService(db.getDb());
       const auditService = new AuditService(db.getDb());
@@ -376,7 +376,7 @@ program
     try {
       const config = getConfig();
       const db = new Database({ dbPath: config.databasePath });
-      db.init();
+      await db.init();
 
       const strategyService = new StrategyService(db.getDb());
 
@@ -442,7 +442,7 @@ program
     try {
       const config = getConfig();
       const db = new Database({ dbPath: config.databasePath });
-      db.init();
+      await db.init();
 
       const strategyService = new StrategyService(db.getDb());
       const deleted = strategyService.delete(opts.id);
@@ -471,7 +471,7 @@ program
     try {
       const config = getConfig();
       const db = new Database({ dbPath: config.databasePath });
-      db.init();
+      await db.init();
 
       if (opts.strategy) {
         const keyManagerService = new KeyManagerService({
@@ -529,7 +529,7 @@ program
     try {
       const config = getConfig();
       const db = new Database({ dbPath: config.databasePath });
-      db.init();
+      await db.init();
 
       const orClient = new OpenRouterClient(config.openrouterManagementKey);
       const creditPoolService = new CreditPoolService(orClient, db.getDb());
@@ -557,7 +557,7 @@ program
     try {
       const config = getConfig();
       const db = new Database({ dbPath: config.databasePath });
-      db.init();
+      await db.init();
 
       console.log('\n🏥 Health Check:\n');
 
