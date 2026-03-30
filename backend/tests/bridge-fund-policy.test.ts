@@ -2,18 +2,23 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // ─── Mocks ────────────────────────────────────────────────────────
 
-function createMockCctpClient(overrides: Record<string, unknown> = {}) {
+function createMockBridgeKitClient(overrides: Record<string, unknown> = {}) {
   return {
-    getUsdcBalance: vi.fn().mockResolvedValue(BigInt(1_000_000_000)), // 1000 USDC
-    bridgeToSolana: vi.fn().mockResolvedValue({
-      txHash: '0xbridge-tx-hash',
-      amountUsdc: BigInt(300_000_000),
-      fromChain: 'base-8453',
-      toChain: 'solana',
-      solanaRecipient: '7xKqBzWGkY',
+    bridge: vi.fn().mockResolvedValue({
+      txHash: 'solana-burn-tx-hash',
+      amountUsdc: 300,
+      fromChain: 'Solana',
+      toChain: 'Base',
+      state: 'success',
+      steps: [
+        { name: 'burn', state: 'success', txHash: 'solana-burn-tx-hash', blockchain: 'Solana' },
+        { name: 'attestation', state: 'success', blockchain: 'CCTP' },
+        { name: 'mint', state: 'success', txHash: 'base-mint-tx-hash', blockchain: 'Base' },
+      ],
+      rawResult: {},
     }),
-    getWalletAddress: vi.fn().mockReturnValue('0xWalletAddress'),
-    getChainId: vi.fn().mockReturnValue(8453),
+    estimateBridge: vi.fn(),
+    retryBridge: vi.fn(),
     ...overrides,
   };
 }
@@ -21,85 +26,86 @@ function createMockCctpClient(overrides: Record<string, unknown> = {}) {
 // ─── CctpBridgeService Tests ──────────────────────────────────────
 
 describe('CctpBridgeService', () => {
-  // Since we can't easily ESM-import the service with vi.mock,
-  // we test the logic via inline construction.
-  // The service itself is a thin orchestrator over CctpClient.
-
   it('should bridge USDC successfully', async () => {
-    const mockClient = createMockCctpClient();
+    const mockClient = createMockBridgeKitClient();
 
-    // Dynamically import to get fresh module
     const { CctpBridgeService } = await import('../src/services/CctpBridgeService.js');
     const service = new CctpBridgeService(mockClient as any);
 
-    const result = await service.bridge({
-      amountUsdc: 300,
-      recipientSolanaAddress: '7xKqBzWGkYExampleWalletAddressThatIsExactly32',
-    });
+    const result = await service.bridge({ amountUsdc: 300 });
 
     expect(result.success).toBe(true);
     expect(result.amountUsdc).toBe(300);
-    expect(result.txHash).toBe('0xbridge-tx-hash');
-    expect(result.fromChain).toBe('base-8453');
-    expect(result.toChain).toBe('solana');
-    expect(mockClient.bridgeToSolana).toHaveBeenCalledOnce();
+    expect(result.txHash).toBe('solana-burn-tx-hash');
+    expect(result.fromChain).toBe('Solana');
+    expect(result.toChain).toBe('Base');
+    expect(result.state).toBe('success');
+    expect(result.steps).toHaveLength(3);
+    expect(mockClient.bridge).toHaveBeenCalledOnce();
   });
 
-  it('should return error when balance is insufficient', async () => {
-    const mockClient = createMockCctpClient({
-      getUsdcBalance: vi.fn().mockResolvedValue(BigInt(100_000_000)), // 100 USDC
+  it('should return error for BridgeKitError', async () => {
+    const { BridgeKitError, BridgeKitErrorCode } = await import('../src/clients/BridgeKitClient.js');
+    const mockClient = createMockBridgeKitClient({
+      bridge: vi.fn().mockRejectedValue(
+        new BridgeKitError(BridgeKitErrorCode.INSUFFICIENT_BALANCE, 'Insufficient USDC balance'),
+      ),
     });
 
     const { CctpBridgeService } = await import('../src/services/CctpBridgeService.js');
     const service = new CctpBridgeService(mockClient as any);
 
-    const result = await service.bridge({
-      amountUsdc: 300,
-      recipientSolanaAddress: '7xKqBzWGkYExampleWalletAddressThatIsExactly32',
-    });
+    const result = await service.bridge({ amountUsdc: 300 });
 
     expect(result.success).toBe(false);
     expect(result.error).toContain('Insufficient USDC balance');
-    expect(mockClient.bridgeToSolana).not.toHaveBeenCalled();
+    expect(result.fromChain).toBe('solana');
+    expect(result.toChain).toBe('base');
   });
 
   it('should handle unexpected errors', async () => {
-    const mockClient = createMockCctpClient({
-      bridgeToSolana: vi.fn().mockRejectedValue(new Error('Network timeout')),
+    const mockClient = createMockBridgeKitClient({
+      bridge: vi.fn().mockRejectedValue(new Error('Network timeout')),
     });
 
     const { CctpBridgeService } = await import('../src/services/CctpBridgeService.js');
     const service = new CctpBridgeService(mockClient as any);
 
-    const result = await service.bridge({
-      amountUsdc: 300,
-      recipientSolanaAddress: '7xKqBzWGkYExampleWalletAddressThatIsExactly32',
-    });
+    const result = await service.bridge({ amountUsdc: 300 });
 
     expect(result.success).toBe(false);
     expect(result.error).toContain('Network timeout');
   });
 
-  it('should track circuit breaker state', async () => {
-    const mockClient = createMockCctpClient({
-      bridgeToSolana: vi.fn().mockRejectedValue(new Error('Persistent failure')),
+  it('should classify retryable errors', async () => {
+    const mockClient = createMockBridgeKitClient({
+      bridge: vi.fn().mockRejectedValue(new Error('Attestation fetch failed')),
     });
 
     const { CctpBridgeService } = await import('../src/services/CctpBridgeService.js');
     const service = new CctpBridgeService(mockClient as any);
 
-    // Should be available initially
+    const result = await service.bridge({ amountUsdc: 300 });
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain('Attestation fetch failed');
+  });
+
+  it('should track circuit breaker state', async () => {
+    const mockClient = createMockBridgeKitClient({
+      bridge: vi.fn().mockRejectedValue(new Error('Persistent failure')),
+    });
+
+    const { CctpBridgeService } = await import('../src/services/CctpBridgeService.js');
+    const service = new CctpBridgeService(mockClient as any);
+
     expect(service.isAvailable()).toBe(true);
 
-    // Trip the circuit breaker
+    // Trip the circuit breaker (3 failures)
     for (let i = 0; i < 3; i++) {
-      await service.bridge({
-        amountUsdc: 300,
-        recipientSolanaAddress: '7xKqBzWGkYExampleWalletAddressThatIsExactly32',
-      });
+      await service.bridge({ amountUsdc: 300 });
     }
 
-    // Circuit breaker should be open after 3 failures
     expect(service.isAvailable()).toBe(false);
   });
 });
@@ -176,7 +182,6 @@ describe('CoinbaseChargeService', () => {
 
 describe('CreditPoolService', () => {
   function createMockDb() {
-    // Use a single prepare mock that dispatches based on SQL content
     const allocations: Array<{ id: string; run_id: string; amount_usd: number }> = [];
 
     function prepare(sql: string) {
@@ -213,7 +218,6 @@ describe('CreditPoolService', () => {
           },
         };
       }
-      // CREATE TABLE and other DDL
       return {
         run: () => ({ changes: 0 }),
         get: () => null,
@@ -246,7 +250,6 @@ describe('CreditPoolService', () => {
     const check = await service.checkAllocation(500);
 
     expect(check.allowed).toBe(true);
-    // 10% reserve of 1000 = 100, so available = 1000 - 100 - 0 (no prior allocations) = 900
     expect(check.availableAfterReserve).toBe(900);
     expect(check.remainingAfterAllocation).toBe(400);
   });
@@ -301,27 +304,22 @@ describe('CreditPoolService', () => {
     const { CreditPoolService } = await import('../src/services/CreditPoolService.js');
     const service = new CreditPoolService(mockOpenRouter as any, mockDb as any, 10);
 
-    // First allocation check — all 900 available (1000 - 100 reserve, 0 allocated)
     const check1 = await service.checkAllocation(400);
     expect(check1.allowed).toBe(true);
     expect(check1.availableAfterReserve).toBe(900);
     expect(check1.remainingAfterAllocation).toBe(500);
 
-    // Record the allocation through the service
     service.recordAllocation('run-1', 400);
 
-    // Verify the allocation was recorded in the mock DB
     expect(mockDb._allocations.length).toBe(1);
     expect(mockDb._allocations[0].amount_usd).toBe(400);
 
-    // Record a second allocation
     service.recordAllocation('run-2', 300);
     expect(mockDb._allocations.length).toBe(2);
   });
 
   it('should reflect allocations when pool state is refreshed after recording', async () => {
-    // Track allocations independently so INSERT and SUM stay consistent
-    const allocations: number[] = [400]; // simulate one pre-existing allocation
+    const allocations: number[] = [400];
     const mockDb = {
       prepare: vi.fn((sql: string) => {
         if (sql.includes('INSERT')) {
@@ -363,11 +361,8 @@ describe('CreditPoolService', () => {
     const { CreditPoolService } = await import('../src/services/CreditPoolService.js');
     const service = new CreditPoolService(mockOpenRouter as any, mockDb as any, 10);
 
-    // Pool already has 400 pre-existing — now record another 400
     service.recordAllocation('run-0', 400);
 
-    // Total allocated = 400 (pre-existing) + 400 (new) = 800
-    // Available: 1000 - 100 (reserve) - 800 (allocated) = 100
     const check = await service.checkAllocation(100);
     expect(check.availableAfterReserve).toBe(100);
     expect(check.remainingAfterAllocation).toBe(0);
@@ -375,7 +370,7 @@ describe('CreditPoolService', () => {
   });
 
   it('should provide pool status with runway estimate', async () => {
-    const allocations: number[] = [200]; // simulate one pre-existing allocation
+    const allocations: number[] = [200];
     const mockDb = {
       prepare: vi.fn((sql: string) => {
         if (sql.includes('INSERT')) {
@@ -417,7 +412,6 @@ describe('CreditPoolService', () => {
     const { CreditPoolService } = await import('../src/services/CreditPoolService.js');
     const service = new CreditPoolService(mockOpenRouter as any, mockDb as any, 10);
 
-    // Pool already has 200 pre-existing allocation
     const status = await service.getStatus();
 
     expect(status.balance).toBe(1000);
@@ -467,18 +461,15 @@ describe('ExecutionPolicy', () => {
     const { ExecutionPolicy } = await import('../src/engine/ExecutionPolicy.js');
     const policy = new ExecutionPolicy(createConfig({ maxDailyRuns: 2 }));
 
-    // Should allow first two runs
     expect(policy.canStartRun('strategy-1').allowed).toBe(true);
     policy.recordRunStart('strategy-1');
     expect(policy.canStartRun('strategy-1').allowed).toBe(true);
     policy.recordRunStart('strategy-1');
 
-    // Should block the third
     const result = policy.canStartRun('strategy-1');
     expect(result.allowed).toBe(false);
     expect(result.reason).toContain('Daily run limit');
 
-    // Different strategy should still be allowed
     expect(policy.canStartRun('strategy-2').allowed).toBe(true);
   });
 
@@ -486,14 +477,11 @@ describe('ExecutionPolicy', () => {
     const { ExecutionPolicy } = await import('../src/engine/ExecutionPolicy.js');
     const policy = new ExecutionPolicy(createConfig({ maxClaimableSolPerRun: 100 }));
 
-    // Normal amount should pass
     expect(policy.canBridge(5000).allowed).toBe(true);
 
-    // Zero/negative should fail
     expect(policy.canBridge(0).allowed).toBe(false);
     expect(policy.canBridge(-100).allowed).toBe(false);
 
-    // Amount exceeding cap should fail (100 SOL * 100 = 10,000 USDC cap)
     const result = policy.canBridge(20_000);
     expect(result.allowed).toBe(false);
     expect(result.reason).toContain('exceeds safety cap');
@@ -503,10 +491,8 @@ describe('ExecutionPolicy', () => {
     const { ExecutionPolicy } = await import('../src/engine/ExecutionPolicy.js');
     const policy = new ExecutionPolicy(createConfig({ creditPoolReservePct: 10 }));
 
-    // Funding 500 from 1000 pool with 10% reserve = max fundable 900
     expect(policy.canFund(500, 1000).allowed).toBe(true);
 
-    // Funding 950 would violate the 10% reserve
     const result = policy.canFund(950, 1000);
     expect(result.allowed).toBe(false);
     expect(result.reason).toContain('reserve');
@@ -544,15 +530,20 @@ describe('ExecutionPolicy', () => {
 // ─── Bridge Phase Tests ───────────────────────────────────────────
 
 describe('bridge phase', () => {
-  it('should bridge USDC via CctpBridgeService', async () => {
+  it('should bridge USDC from Solana to Base', async () => {
     const mockBridgeService = {
       bridge: vi.fn().mockResolvedValue({
         success: true,
-        txHash: '0xbridge-test-tx',
+        txHash: 'solana-burn-tx-hash',
         amountUsdc: 300,
-        fromChain: 'base-8453',
-        toChain: 'solana',
-        recipientSolanaAddress: '7xKqBzWGkY',
+        fromChain: 'Solana',
+        toChain: 'Base',
+        state: 'success',
+        steps: [
+          { name: 'burn', state: 'success', txHash: 'solana-burn-tx-hash' },
+          { name: 'attestation', state: 'success' },
+          { name: 'mint', state: 'success', txHash: 'base-mint-tx-hash' },
+        ],
       }),
       isAvailable: vi.fn().mockReturnValue(true),
       getCircuitBreakerState: vi.fn().mockReturnValue({ state: 'CLOSED', failures: 0 }),
@@ -561,7 +552,6 @@ describe('bridge phase', () => {
     const { createBridgePhase } = await import('../src/engine/phases/bridge.js');
     const bridgePhase = createBridgePhase({
       bridgeService: mockBridgeService as any,
-      recipientSolanaAddress: '7xKqBzWGkYExampleWalletAddressThatIsExactly32',
     });
 
     const run = {
@@ -577,8 +567,12 @@ describe('bridge phase', () => {
 
     expect(result.success).toBe(true);
     expect(result.data?.bridgedUsdc).toBe(300);
-    expect(result.data?.bridgeTxHash).toBe('0xbridge-test-tx');
+    expect(result.data?.bridgeTxHash).toBe('solana-burn-tx-hash');
+    expect(result.data?.fromChain).toBe('Solana');
+    expect(result.data?.toChain).toBe('Base');
     expect(mockBridgeService.bridge).toHaveBeenCalledOnce();
+    // Verify the bridge call does NOT include recipientSolanaAddress
+    expect(mockBridgeService.bridge).toHaveBeenCalledWith({ amountUsdc: 300 });
   });
 
   it('should skip bridge when no USDC available', async () => {
@@ -591,7 +585,6 @@ describe('bridge phase', () => {
     const { createBridgePhase } = await import('../src/engine/phases/bridge.js');
     const bridgePhase = createBridgePhase({
       bridgeService: mockBridgeService as any,
-      recipientSolanaAddress: '7xKqBzWGkYExampleWalletAddressThatIsExactly32',
     });
 
     const run = {
@@ -618,7 +611,6 @@ describe('bridge phase', () => {
     const { createBridgePhase } = await import('../src/engine/phases/bridge.js');
     const bridgePhase = createBridgePhase({
       bridgeService: mockBridgeService as any,
-      recipientSolanaAddress: '7xKqBzWGkYExampleWalletAddressThatIsExactly32',
     });
 
     const run = {
@@ -633,6 +625,38 @@ describe('bridge phase', () => {
     expect(result.success).toBe(false);
     expect(result.error?.code).toBe('BRIDGE_UNAVAILABLE');
     expect(mockBridgeService.bridge).not.toHaveBeenCalled();
+  });
+
+  it('should propagate bridge failure from service', async () => {
+    const mockBridgeService = {
+      bridge: vi.fn().mockResolvedValue({
+        success: false,
+        amountUsdc: 300,
+        fromChain: 'solana',
+        toChain: 'base',
+        error: 'Insufficient USDC balance',
+      }),
+      isAvailable: vi.fn().mockReturnValue(true),
+      getCircuitBreakerState: vi.fn().mockReturnValue({ state: 'CLOSED', failures: 0 }),
+    };
+
+    const { createBridgePhase } = await import('../src/engine/phases/bridge.js');
+    const bridgePhase = createBridgePhase({
+      bridgeService: mockBridgeService as any,
+    });
+
+    const run = {
+      runId: 'test-run',
+      strategyId: 'test-strategy',
+      state: 'BRIDGING' as const,
+      swappedUsdc: 300,
+    } as any;
+
+    const result = await bridgePhase(run);
+
+    expect(result.success).toBe(false);
+    expect(result.error?.code).toBe('BRIDGE_FAILED');
+    expect(result.error?.message).toContain('Insufficient USDC balance');
   });
 });
 
@@ -834,7 +858,6 @@ describe('phase handler map', () => {
           isAvailable: vi.fn().mockReturnValue(true),
           getCircuitBreakerState: vi.fn().mockReturnValue({ state: 'CLOSED', failures: 0 }),
         } as any,
-        recipientSolanaAddress: 'test-address',
       },
       fund: {
         chargeService: {
@@ -876,6 +899,8 @@ describe('phase handler map', () => {
     expect(bridgeHandler).toBeDefined();
     const bridgeResult = await bridgeHandler!(run);
     expect(bridgeResult.success).toBe(true);
+    expect(bridgeResult.data?.fromChain).toBe('solana');
+    expect(bridgeResult.data?.toChain).toBe('base');
 
     const run2 = {
       runId: 'test-run',

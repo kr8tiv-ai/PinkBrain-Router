@@ -436,7 +436,7 @@ const mockQuote: TradeQuote = {
   requestId: 'req-1',
   contextSlot: 100,
   inAmount: '10000000000',
-  inputMint: 'So11111111111111111111111111111111111112',
+  inputMint: 'So11111111111111111111111111111111111111112',
   outAmount: '300000000',
   outputMint: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
   minOutAmount: '298500000',
@@ -547,7 +547,7 @@ describe('createSwapPhase', () => {
     });
     expect(mockBagsClient.prepareSwap).toHaveBeenCalledWith(
       expect.objectContaining({
-        inputMint: 'So11111111111111111111111111111111111112',
+        inputMint: 'So11111111111111111111111111111111111111112',
         outputMint: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
         amount: 10_000_000_000, // 10 SOL in lamports
         userPublicKey: '',
@@ -661,7 +661,7 @@ describe('createSwapPhase', () => {
     expect(snapshot.requestId).toBe('req-1');
     expect(snapshot.inAmount).toBe('10000000000');
     expect(snapshot.outAmount).toBe('300000000');
-    expect(snapshot.inputMint).toBe('So11111111111111111111111111111111111112');
+    expect(snapshot.inputMint).toBe('So11111111111111111111111111111111111111112');
     expect(snapshot.outputMint).toBe('EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v');
     expect(snapshot.slippageBps).toBe(50);
     expect(snapshot.priceImpactPct).toBe('0.15');

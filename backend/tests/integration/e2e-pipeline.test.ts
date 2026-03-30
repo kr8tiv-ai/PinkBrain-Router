@@ -30,6 +30,7 @@ import { createSwapPhase } from '../../src/engine/phases/swap.js';
 import { createAllocatePhase } from '../../src/engine/phases/allocate.js';
 import { StateMachine } from '../../src/engine/StateMachine.js';
 import { ExecutionPolicy } from '../../src/engine/ExecutionPolicy.js';
+import { WRAPPED_SOL_MINT } from '../../src/constants/addresses.js';
 import type { Config } from '../../src/config/index.js';
 import type { CreditRun } from '../../src/types/index.js';
 
@@ -69,7 +70,7 @@ const mockBagsClient = {
   getClaimablePositions: vi.fn().mockResolvedValue([
     {
       isCustomFeeVault: false,
-      baseMint: 'So111111111111111111111111111111111111111',
+      baseMint: WRAPPED_SOL_MINT,
       isMigrated: true,
       totalClaimableLamportsUserShare: 10_000_000_000, // 10 SOL
       programId: 'FeojVxAyqmjCjCD5FAByXZNFLUhMCpjdBHoPEKzLqCJr',
@@ -102,7 +103,7 @@ const mockBagsClient = {
       requestId: 'req-1',
       contextSlot: 1,
       inAmount: '10000000000', // 10 SOL in lamports
-      inputMint: 'So111111111111111111111111111111111111111',
+      inputMint: WRAPPED_SOL_MINT,
       outAmount: '200000000', // ~200 USDC (6 decimals)
       outputMint: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
       minOutAmount: '190000000',
@@ -529,10 +530,10 @@ describe('E2E: Full pipeline integration (7 phases)', () => {
     // Only verify positions were queried.
     expect(mockBagsClient.getClaimTransactions).not.toHaveBeenCalled();
 
-    // Swap prepared with SOL input (SOL_MINT has 31 ones — known bug from S02, tests match implementation)
+    // Swap prepared with SOL input — canonical wrapped SOL mint (40 ones)
     expect(mockBagsClient.prepareSwap).toHaveBeenCalledWith(
       expect.objectContaining({
-        inputMint: 'So11111111111111111111111111111111111112',
+        inputMint: WRAPPED_SOL_MINT,
         outputMint: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
       }),
     );

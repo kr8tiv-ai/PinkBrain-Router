@@ -12,7 +12,6 @@ export default defineConfig({
       exclude: [
         'src/cli.ts',
         'src/bags-schemas.ts',
-        'src/clients/CctpClient.ts',
         'src/clients/BagsAdapter.ts',
         'src/index.ts',
       ],

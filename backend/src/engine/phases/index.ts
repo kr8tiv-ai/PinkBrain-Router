@@ -66,19 +66,22 @@ export function createPhaseHandlerMap(deps?: {
 /**
  * Default bridge phase: returns a stub result when no deps are injected.
  * Used for testing the state machine without real services.
+ * Direction: Solana→Base (burn on Solana, mint on Base).
  */
 async function defaultBridgePhase(run: CreditRun): Promise<PhaseResult> {
   const { pino } = await import('pino');
   const logger = pino({ name: 'phase:bridge:default' });
   logger.info(
     { runId: run.runId, swappedUsdc: run.swappedUsdc },
-    'BRIDGING phase — no bridge deps injected, returning stub',
+    'BRIDGING phase — no bridge deps injected, returning stub (Solana→Base)',
   );
   return {
     success: true,
     data: {
       bridgedUsdc: run.swappedUsdc ?? 0,
       bridgeTxHash: 'default-stub-tx',
+      fromChain: 'solana',
+      toChain: 'base',
       skipped: !run.swappedUsdc || run.swappedUsdc <= 0,
     },
   };

@@ -1,12 +1,12 @@
 import pino from 'pino';
-import type { CctpClient } from '../clients/CctpClient.js';
+import type { BridgeKitClient, BridgeResult } from '../clients/BridgeKitClient.js';
+import { BridgeKitError, BridgeKitErrorCode } from '../clients/BridgeKitClient.js';
 import { CircuitBreaker } from '../clients/CircuitBreaker.js';
 
 const logger = pino({ name: 'CctpBridgeService' });
 
 export interface BridgeRequest {
   amountUsdc: number; // human-readable USDC amount (e.g., 300.00)
-  recipientSolanaAddress: string;
 }
 
 export interface BridgeResponse {
@@ -15,8 +15,9 @@ export interface BridgeResponse {
   amountUsdc: number;
   fromChain: string;
   toChain: string;
-  recipientSolanaAddress: string;
   error?: string;
+  steps?: BridgeResult['steps'];
+  state?: BridgeResult['state'];
 }
 
 export class CctpBridgeError extends Error {
@@ -33,7 +34,7 @@ export class CctpBridgeError extends Error {
 export class CctpBridgeService {
   private readonly circuitBreaker: CircuitBreaker;
 
-  constructor(private readonly cctpClient: CctpClient) {
+  constructor(private readonly bridgeKitClient: BridgeKitClient) {
     this.circuitBreaker = new CircuitBreaker({
       failureThreshold: 3,
       resetTimeoutMs: 60_000,
@@ -42,66 +43,61 @@ export class CctpBridgeService {
   }
 
   /**
-   * Bridge USDC from Base to Solana via CCTP.
-   * Includes pre-flight balance check, circuit breaker protection, and idempotency.
+   * Bridge USDC from Solana to Base via Circle Bridge Kit.
+   * Burns USDC on Solana, polls for attestation, mints on Base.
+   * Includes circuit breaker protection.
    */
   async bridge(request: BridgeRequest): Promise<BridgeResponse> {
-    logger.info(
-      { amount: request.amountUsdc, recipient: request.recipientSolanaAddress },
-      'Initiating bridge request',
-    );
+    logger.info({ amount: request.amountUsdc }, 'Initiating Solana→Base bridge request');
 
     try {
       const result = await this.circuitBreaker.execute(async () => {
-        // Pre-flight: check USDC balance
-        const balance = await this.cctpClient.getUsdcBalance();
-        const amountSmallest = this.toSmallestUnits(request.amountUsdc);
-
-        if (balance < amountSmallest) {
-          throw new CctpBridgeError(
-            `Insufficient USDC balance: have ${this.fromSmallestUnits(balance)}, need ${request.amountUsdc}`,
-            'INSUFFICIENT_BALANCE',
-            false,
-          );
-        }
-
-        // Execute the bridge
-        const bridgeResult = await this.cctpClient.bridgeToSolana({
-          amountUsdc: amountSmallest,
-          solanaRecipient: request.recipientSolanaAddress,
-        });
-
-        return bridgeResult;
+        const amountStr = request.amountUsdc.toString();
+        return this.bridgeKitClient.bridge(amountStr);
       });
 
       logger.info(
-        { txHash: result.txHash, amount: result.amountUsdc.toString() },
+        { txHash: result.txHash, amount: result.amountUsdc, state: result.state },
         'CCTP bridge completed successfully',
       );
 
       return {
         success: true,
         txHash: result.txHash,
-        amountUsdc: this.fromSmallestUnits(result.amountUsdc),
+        amountUsdc: result.amountUsdc,
         fromChain: result.fromChain,
         toChain: result.toChain,
-        recipientSolanaAddress: result.solanaRecipient,
+        steps: result.steps,
+        state: result.state,
       };
     } catch (error) {
+      if (error instanceof BridgeKitError) {
+        logger.error(
+          { code: error.code, message: error.message },
+          'Bridge failed (BridgeKit error)',
+        );
+        return {
+          success: false,
+          amountUsdc: request.amountUsdc,
+          fromChain: 'solana',
+          toChain: 'base',
+          error: error.message,
+        };
+      }
+
       if (error instanceof CctpBridgeError) {
         logger.error({ code: error.code, message: error.message }, 'Bridge failed (CCTP error)');
         return {
           success: false,
           amountUsdc: request.amountUsdc,
-          fromChain: 'base',
-          toChain: 'solana',
-          recipientSolanaAddress: request.recipientSolanaAddress,
+          fromChain: 'solana',
+          toChain: 'base',
           error: error.message,
         };
       }
 
       const message = (error as Error).message;
-      const retryable = message.includes('timeout') || message.includes('nonce') || message.includes('gas');
+      const retryable = this.isRetryable(message);
 
       logger.error(
         { error: message, retryable },
@@ -111,9 +107,8 @@ export class CctpBridgeService {
       return {
         success: false,
         amountUsdc: request.amountUsdc,
-        fromChain: 'base',
-        toChain: 'solana',
-        recipientSolanaAddress: request.recipientSolanaAddress,
+        fromChain: 'solana',
+        toChain: 'base',
         error: message,
       };
     }
@@ -129,12 +124,16 @@ export class CctpBridgeService {
     return this.circuitBreaker.getState();
   }
 
-  private toSmallestUnits(amount: number): bigint {
-    // USDC has 6 decimals
-    return BigInt(Math.round(amount * 1_000_000));
-  }
-
-  private fromSmallestUnits(amount: bigint): number {
-    return Number(amount) / 1_000_000;
+  /** Classify an unexpected error as retryable or not */
+  private isRetryable(message: string): boolean {
+    const lower = message.toLowerCase();
+    return (
+      lower.includes('timeout') ||
+      lower.includes('nonce') ||
+      lower.includes('gas') ||
+      lower.includes('attestation') ||
+      lower.includes('connection') ||
+      lower.includes('eagain')
+    );
   }
 }

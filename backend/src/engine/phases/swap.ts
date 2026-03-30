@@ -2,12 +2,9 @@ import pino from 'pino';
 import type { BagsAdapter } from '../../types/index.js';
 import type { StrategyService } from '../../services/StrategyService.js';
 import type { SwapTransaction, PhaseResult, CreditRun } from '../../types/index.js';
+import { WRAPPED_SOL_MINT as SOL_MINT, SOLANA_USDC_MINT as USDC_MINT, LAMPORTS_PER_SOL } from '../../constants/addresses.js';
 
 const logger = pino({ name: 'phase:swap' });
-
-const SOL_MINT = 'So11111111111111111111111111111111111112';
-const USDC_MINT = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
-const LAMPORTS_PER_SOL = 1_000_000_000;
 
 export interface SwapPhaseDeps {
   bagsClient: BagsAdapter;

@@ -6,20 +6,14 @@ const logger = pino({ name: 'phase:bridge' });
 
 export interface BridgePhaseDeps {
   bridgeService: CctpBridgeService;
-  recipientSolanaAddress: string;
 }
 
 /**
- * BRIDGING phase: Bridge USDC from Base EVM chain to Solana via Circle CCTP.
+ * BRIDGING phase: Bridge USDC from Solana to Base via Circle Bridge Kit.
  *
- * This is the reverse direction of what you might expect — the pipeline claims
- * fees on Solana, swaps to USDC, then bridges USDC TO Solana from Base
- * (where the Coinbase Charge USDC arrives) to fund the Solana-side operations.
- *
- * In the actual flow, if USDC is already on Solana after the swap phase,
- * this bridge step may be skipped (bridgedUsdc = 0). The bridge is needed
- * when credits are purchased via Coinbase Charge on Base and need to be
- * available on Solana.
+ * After the swap phase produces USDC on Solana, this phase burns USDC on
+ * Solana and mints it on Base via CCTP. The Bridge Kit SDK handles burn +
+ * attestation polling + mint automatically.
  */
 export function createBridgePhase(deps: BridgePhaseDeps) {
   return async function bridgePhase(run: CreditRun): Promise<PhaseResult> {
@@ -61,13 +55,12 @@ export function createBridgePhase(deps: BridgePhaseDeps) {
     }
 
     logger.info(
-      { runId: run.runId, amount: swappedUsdc, recipient: deps.recipientSolanaAddress },
-      'BRIDGING phase — bridging USDC via CCTP',
+      { runId: run.runId, amount: swappedUsdc },
+      'BRIDGING phase — bridging USDC Solana→Base via Bridge Kit',
     );
 
     const result = await deps.bridgeService.bridge({
       amountUsdc: swappedUsdc,
-      recipientSolanaAddress: deps.recipientSolanaAddress,
     });
 
     if (!result.success) {
@@ -93,6 +86,7 @@ export function createBridgePhase(deps: BridgePhaseDeps) {
         bridgedUsdc: result.amountUsdc,
         fromChain: result.fromChain,
         toChain: result.toChain,
+        state: result.state,
       },
       'BRIDGING phase completed successfully',
     );
@@ -104,7 +98,8 @@ export function createBridgePhase(deps: BridgePhaseDeps) {
         bridgeTxHash: result.txHash,
         fromChain: result.fromChain,
         toChain: result.toChain,
-        recipientSolanaAddress: result.recipientSolanaAddress,
+        state: result.state,
+        steps: result.steps,
       },
     };
   };

@@ -2,6 +2,7 @@ import pino from 'pino';
 import type { BagsAdapter } from '../../types/index.js';
 import type { StrategyService } from '../../services/StrategyService.js';
 import type { ClaimTransaction, PhaseResult, CreditRun } from '../../types/index.js';
+import { LAMPORTS_PER_SOL } from '../../constants/addresses.js';
 
 const logger = pino({ name: 'phase:claim' });
 
@@ -11,8 +12,6 @@ export interface ClaimPhaseDeps {
   signAndSendClaim: (tx: ClaimTransaction) => Promise<string>;
   dryRun: boolean;
 }
-
-const LAMPORTS_PER_SOL = 1_000_000_000;
 
 /**
  * CLAIMING phase: Query Bags.fm for claimable fee positions, check SOL threshold,
