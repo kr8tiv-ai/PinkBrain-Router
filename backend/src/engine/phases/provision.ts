@@ -10,6 +10,7 @@ export interface ProvisionPhaseDeps {
   keyManagerService: KeyManagerService;
   distributionService: DistributionService;
   strategyService: StrategyService;
+  dryRun?: boolean;
 }
 
 /**
@@ -39,6 +40,23 @@ export function createProvisionPhase(deps: ProvisionPhaseDeps) {
           keysFailed: 0,
           skipped: true,
           reason: 'No allocated credits',
+        },
+      };
+    }
+
+    // Dry-run path: return simulated data without calling key manager
+    if (deps.dryRun) {
+      logger.info(
+        { runId: run.runId, allocatedUsd },
+        'Dry-run mode — would provision OpenRouter keys, skipping real provisioning',
+      );
+      return {
+        success: true,
+        data: {
+          keysProvisioned: 0,
+          keysUpdated: 0,
+          keysFailed: 0,
+          dryRun: true,
         },
       };
     }

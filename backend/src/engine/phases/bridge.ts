@@ -6,6 +6,7 @@ const logger = pino({ name: 'phase:bridge' });
 
 export interface BridgePhaseDeps {
   bridgeService: CctpBridgeService;
+  dryRun?: boolean;
 }
 
 /**
@@ -32,6 +33,24 @@ export function createBridgePhase(deps: BridgePhaseDeps) {
           bridgeTxHash: null,
           skipped: true,
           reason: 'No USDC available from swap phase',
+        },
+      };
+    }
+
+    // Dry-run path: return simulated data without calling bridge service
+    if (deps.dryRun) {
+      logger.info(
+        { runId: run.runId, amount: swappedUsdc },
+        'Dry-run mode — would bridge USDC Solana→Base, skipping real bridge',
+      );
+      return {
+        success: true,
+        data: {
+          bridgedUsdc: swappedUsdc,
+          bridgeTxHash: null,
+          dryRun: true,
+          fromChain: 'solana',
+          toChain: 'base',
         },
       };
     }

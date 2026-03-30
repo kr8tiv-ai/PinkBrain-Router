@@ -98,7 +98,7 @@ async function main() {
       evmPrivateKey: evmPrivateKey,
     });
     const cctpBridgeService = new CctpBridgeService(bridgeKitClient);
-    bridgeDeps = { bridgeService: cctpBridgeService };
+    bridgeDeps = { bridgeService: cctpBridgeService, dryRun: config.dryRun };
     logger.info('Bridge phase: using real CctpBridgeService (Bridge Kit)');
   } else {
     logger.info(
@@ -132,6 +132,7 @@ async function main() {
     keyManagerService,
     distributionService,
     strategyService,
+    dryRun: config.dryRun,
   };
   logger.info('Provision phase: using real services (KeyManager, Distribution, Strategy)');
 

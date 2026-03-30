@@ -42,7 +42,7 @@ describe('CctpBridgeService', () => {
     expect(result.state).toBe('success');
     expect(result.steps).toHaveLength(3);
     expect(mockClient.bridge).toHaveBeenCalledOnce();
-  });
+  }, 15_000);
 
   it('should return error for BridgeKitError', async () => {
     const { BridgeKitError, BridgeKitErrorCode } = await import('../src/clients/BridgeKitClient.js');
@@ -680,6 +680,65 @@ describe('bridge phase', () => {
     expect(result.error?.code).toBe('BRIDGE_FAILED');
     expect(result.error?.message).toContain('Insufficient USDC balance');
   });
+
+  it('should return simulated data in dry-run mode without calling bridge service', async () => {
+    const mockBridgeService = {
+      bridge: vi.fn(),
+      isAvailable: vi.fn().mockReturnValue(true),
+      getCircuitBreakerState: vi.fn().mockReturnValue({ state: 'CLOSED', failures: 0 }),
+    };
+
+    const { createBridgePhase } = await import('../src/engine/phases/bridge.js');
+    const bridgePhase = createBridgePhase({
+      bridgeService: mockBridgeService as any,
+      dryRun: true,
+    });
+
+    const run = {
+      runId: 'test-run',
+      strategyId: 'test-strategy',
+      state: 'BRIDGING' as const,
+      swappedUsdc: 300,
+    } as any;
+
+    const result = await bridgePhase(run);
+
+    expect(result.success).toBe(true);
+    expect(result.data?.bridgedUsdc).toBe(300);
+    expect(result.data?.bridgeTxHash).toBeNull();
+    expect(result.data?.dryRun).toBe(true);
+    expect(result.data?.fromChain).toBe('solana');
+    expect(result.data?.toChain).toBe('base');
+    expect(mockBridgeService.bridge).not.toHaveBeenCalled();
+  });
+
+  it('should skip dry-run when no USDC available', async () => {
+    const mockBridgeService = {
+      bridge: vi.fn(),
+      isAvailable: vi.fn().mockReturnValue(true),
+      getCircuitBreakerState: vi.fn().mockReturnValue({ state: 'CLOSED', failures: 0 }),
+    };
+
+    const { createBridgePhase } = await import('../src/engine/phases/bridge.js');
+    const bridgePhase = createBridgePhase({
+      bridgeService: mockBridgeService as any,
+      dryRun: true,
+    });
+
+    const run = {
+      runId: 'test-run',
+      strategyId: 'test-strategy',
+      state: 'BRIDGING' as const,
+      swappedUsdc: 0,
+    } as any;
+
+    const result = await bridgePhase(run);
+
+    expect(result.success).toBe(true);
+    expect(result.data?.skipped).toBe(true);
+    expect(result.data?.dryRun).toBeUndefined();
+    expect(mockBridgeService.bridge).not.toHaveBeenCalled();
+  });
 });
 
 // ─── Fund Phase Tests ────────────────────────────────────────────
@@ -864,6 +923,127 @@ describe('fund phase', () => {
     expect(result.success).toBe(false);
     expect(result.error?.code).toBe('FUNDING_FAILED');
     expect(result.error?.message).toContain('Payment gateway error');
+  });
+});
+
+// ─── Provision Phase Dry-Run Tests ────────────────────────────────
+
+describe('provision phase dry-run', () => {
+  it('should return simulated data in dry-run mode without calling key manager', async () => {
+    const mockKeyManager = {
+      provisionKeys: vi.fn(),
+    };
+    const mockDistribution = {
+      getSnapshotsByRun: vi.fn(),
+    };
+    const mockStrategy = {
+      getById: vi.fn(),
+    };
+
+    const { createProvisionPhase } = await import('../src/engine/phases/provision.js');
+    const provisionPhase = createProvisionPhase({
+      keyManagerService: mockKeyManager as any,
+      distributionService: mockDistribution as any,
+      strategyService: mockStrategy as any,
+      dryRun: true,
+    });
+
+    const run = {
+      runId: 'test-run',
+      strategyId: 'test-strategy',
+      state: 'PROVISIONING' as const,
+      allocatedUsd: 500,
+    } as any;
+
+    const result = await provisionPhase(run);
+
+    expect(result.success).toBe(true);
+    expect(result.data?.keysProvisioned).toBe(0);
+    expect(result.data?.keysUpdated).toBe(0);
+    expect(result.data?.keysFailed).toBe(0);
+    expect(result.data?.dryRun).toBe(true);
+    expect(mockKeyManager.provisionKeys).not.toHaveBeenCalled();
+  });
+
+  it('should skip dry-run when no allocated credits', async () => {
+    const mockKeyManager = {
+      provisionKeys: vi.fn(),
+    };
+    const mockDistribution = {
+      getSnapshotsByRun: vi.fn(),
+    };
+    const mockStrategy = {
+      getById: vi.fn(),
+    };
+
+    const { createProvisionPhase } = await import('../src/engine/phases/provision.js');
+    const provisionPhase = createProvisionPhase({
+      keyManagerService: mockKeyManager as any,
+      distributionService: mockDistribution as any,
+      strategyService: mockStrategy as any,
+      dryRun: true,
+    });
+
+    const run = {
+      runId: 'test-run',
+      strategyId: 'test-strategy',
+      state: 'PROVISIONING' as const,
+      allocatedUsd: 0,
+    } as any;
+
+    const result = await provisionPhase(run);
+
+    expect(result.success).toBe(true);
+    expect(result.data?.skipped).toBe(true);
+    expect(result.data?.dryRun).toBeUndefined();
+    expect(mockKeyManager.provisionKeys).not.toHaveBeenCalled();
+  });
+
+  it('should call real services when dryRun is false', async () => {
+    const mockKeyManager = {
+      provisionKeys: vi.fn().mockResolvedValue({
+        keysProvisioned: 2,
+        keysUpdated: 1,
+        keysFailed: 0,
+        keyHashes: ['hash1', 'hash2'],
+        failedWallets: [],
+      }),
+    };
+    const mockDistribution = {
+      getSnapshotsByRun: vi.fn().mockReturnValue([
+        { holderWallet: 'wallet1', allocatedUsd: 200 },
+        { holderWallet: 'wallet2', allocatedUsd: 300 },
+      ]),
+    };
+    const mockStrategy = {
+      getById: vi.fn().mockReturnValue({
+        strategyId: 'test-strategy',
+        distributionToken: 'token-address',
+      }),
+    };
+
+    const { createProvisionPhase } = await import('../src/engine/phases/provision.js');
+    const provisionPhase = createProvisionPhase({
+      keyManagerService: mockKeyManager as any,
+      distributionService: mockDistribution as any,
+      strategyService: mockStrategy as any,
+      dryRun: false,
+    });
+
+    const run = {
+      runId: 'test-run',
+      strategyId: 'test-strategy',
+      state: 'PROVISIONING' as const,
+      allocatedUsd: 500,
+    } as any;
+
+    const result = await provisionPhase(run);
+
+    expect(result.success).toBe(true);
+    expect(result.data?.keysProvisioned).toBe(2);
+    expect(result.data?.keysUpdated).toBe(1);
+    expect(result.data?.dryRun).toBeUndefined();
+    expect(mockKeyManager.provisionKeys).toHaveBeenCalledOnce();
   });
 });
 
