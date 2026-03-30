@@ -17,6 +17,10 @@ import { createSignAndSendSwap } from './engine/signAndSendSwap.js';
 import { ExecutionPolicy } from './engine/ExecutionPolicy.js';
 import { StateMachine } from './engine/StateMachine.js';
 import { createPhaseHandlerMap } from './engine/phases/index.js';
+import { CctpBridgeService } from './services/CctpBridgeService.js';
+import { CoinbaseChargeService } from './services/CoinbaseChargeService.js';
+import { BridgeKitClient } from './clients/BridgeKitClient.js';
+import { EvmPaymentExecutor } from './clients/EvmPaymentExecutor.js';
 import { getConfig } from './config/index.js';
 import type { Strategy } from './types/index.js';
 
@@ -139,7 +143,10 @@ program
       // OpenRouter client (shared by credit pool and key manager)
       const orClient = new OpenRouterClient(config.openrouterManagementKey);
 
-      // Credit pool for allocate phase
+      // Key manager for provision phase
+      const keyManagerService = new KeyManagerService({ openRouterClient: orClient, db: dbConn });
+
+      // Credit pool for allocate + fund phases
       const creditPoolService = new CreditPoolService(orClient, dbConn, config.creditPoolReservePct);
 
       // Helius client for holder resolution in allocate phase
@@ -148,7 +155,7 @@ program
         rpcUrl: config.heliusRpcUrl,
       });
 
-      // Distribution service for allocate phase
+      // Distribution service for allocate + provision phases
       const distributionService = new DistributionService({
         db: dbConn,
         creditPoolService,
@@ -171,6 +178,55 @@ program
         ? createSignAndSendSwap(connection, claimKeypair)
         : () => Promise.reject(new Error('No signer configured — set SIGNER_PRIVATE_KEY for live swapping'));
 
+      // ── Bridge phase ─────────────────────────────────────────────
+      // Requires both Solana signer (for burn) and EVM key (for mint on Base).
+      // Falls back to stub when either key is missing.
+      const evmPrivateKey = config.evmPrivateKey;
+      let bridgeDeps: { bridgeService: CctpBridgeService } | undefined;
+      if (config.signerPrivateKey && evmPrivateKey) {
+        const bridgeKitClient = new BridgeKitClient({
+          solanaRpcUrl: config.heliusRpcUrl,
+          solanaPrivateKey: config.signerPrivateKey,
+          evmPrivateKey: evmPrivateKey,
+        });
+        const cctpBridgeService = new CctpBridgeService(bridgeKitClient);
+        bridgeDeps = { bridgeService: cctpBridgeService };
+        logger.info('Bridge phase: using real CctpBridgeService (Bridge Kit)');
+      } else {
+        logger.info(
+          { hasSignerKey: !!config.signerPrivateKey, hasEvmKey: !!evmPrivateKey },
+          'Bridge phase: using stub (missing signerPrivateKey or evmPrivateKey)',
+        );
+      }
+
+      // ── Fund phase ──────────────────────────────────────────────
+      // Full EVM execution requires evmPrivateKey. Falls back to stub when absent.
+      let fundDeps: { chargeService: CoinbaseChargeService; creditPoolService: CreditPoolService } | undefined;
+      if (evmPrivateKey) {
+        const evmExecutor = new EvmPaymentExecutor({
+          privateKey: evmPrivateKey,
+          chainId: config.evmChainId,
+        });
+        const coinbaseChargeService = new CoinbaseChargeService(orClient, {
+          dryRun: config.dryRun,
+          evmPaymentExecutor: evmExecutor,
+          evmChainId: config.evmChainId,
+        });
+        fundDeps = { chargeService: coinbaseChargeService, creditPoolService };
+        logger.info('Fund phase: using real CoinbaseChargeService + EvmPaymentExecutor');
+      } else {
+        logger.info('Fund phase: using stub (missing evmPrivateKey)');
+      }
+
+      // ── Provision phase ─────────────────────────────────────────
+      // Always uses real services — all deps are already constructed.
+      const provisionDeps = {
+        keyManagerService,
+        distributionService,
+        strategyService,
+      };
+      logger.info('Provision phase: using real services (KeyManager, Distribution, Strategy)');
+
       const phaseHandlers = createPhaseHandlerMap({
         claim: {
           bagsClient,
@@ -190,6 +246,9 @@ program
           resolveHolders: (strategy) =>
             heliusClient.getTokenHolders(strategy.distributionToken),
         },
+        bridge: bridgeDeps,
+        fund: fundDeps,
+        provision: provisionDeps,
       });
       const stateMachine = new StateMachine({
         auditService,
