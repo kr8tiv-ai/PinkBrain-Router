@@ -77,6 +77,28 @@ describe('CctpBridgeService', () => {
     expect(result.error).toContain('Network timeout');
   });
 
+  it('should handle BridgeKitError TIMEOUT correctly', async () => {
+    const { BridgeKitError, BridgeKitErrorCode } = await import('../src/clients/BridgeKitClient.js');
+    const mockClient = createMockBridgeKitClient({
+      bridge: vi.fn().mockRejectedValue(
+        new BridgeKitError(BridgeKitErrorCode.TIMEOUT, 'Bridge operation timed out after 1800000ms'),
+      ),
+    });
+
+    const { CctpBridgeService } = await import('../src/services/CctpBridgeService.js');
+    const service = new CctpBridgeService(mockClient as any);
+
+    const result = await service.bridge({ amountUsdc: 300 });
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain('timed out');
+    expect(result.fromChain).toBe('solana');
+    expect(result.toChain).toBe('base');
+    expect(result.amountUsdc).toBe(300);
+    // TIMEOUT is a typed BridgeKitError — caught in the BridgeKitError branch, not isRetryable
+    expect(result.error).not.toContain('retryable');
+  });
+
   it('should classify retryable errors', async () => {
     const mockClient = createMockBridgeKitClient({
       bridge: vi.fn().mockRejectedValue(new Error('Attestation fetch failed')),
