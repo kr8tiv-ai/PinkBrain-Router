@@ -19,6 +19,10 @@ import { StateMachine } from './engine/StateMachine.js';
 import { RunLock } from './engine/RunLock.js';
 import { createPhaseHandlerMap } from './engine/phases/index.js';
 import { SchedulerService } from './services/SchedulerService.js';
+import { CctpBridgeService } from './services/CctpBridgeService.js';
+import { CoinbaseChargeService } from './services/CoinbaseChargeService.js';
+import { BridgeKitClient } from './clients/BridgeKitClient.js';
+import { EvmPaymentExecutor } from './clients/EvmPaymentExecutor.js';
 import { buildApp } from './server.js';
 import { getConfig } from './config/index.js';
 
@@ -82,6 +86,55 @@ async function main() {
     ? createSignAndSendSwap(connection, claimKeypair)
     : () => Promise.reject(new Error('No signer configured — set SIGNER_PRIVATE_KEY for live swapping'));
 
+  // ── Bridge phase ─────────────────────────────────────────────
+  // Requires both Solana signer (for burn) and EVM key (for mint on Base).
+  // Falls back to stub when either key is missing.
+  const evmPrivateKey = config.evmPrivateKey;
+  let bridgeDeps: { bridgeService: CctpBridgeService } | undefined;
+  if (config.signerPrivateKey && evmPrivateKey) {
+    const bridgeKitClient = new BridgeKitClient({
+      solanaRpcUrl: config.heliusRpcUrl,
+      solanaPrivateKey: config.signerPrivateKey,
+      evmPrivateKey: evmPrivateKey,
+    });
+    const cctpBridgeService = new CctpBridgeService(bridgeKitClient);
+    bridgeDeps = { bridgeService: cctpBridgeService };
+    logger.info('Bridge phase: using real CctpBridgeService (Bridge Kit)');
+  } else {
+    logger.info(
+      { hasSignerKey: !!config.signerPrivateKey, hasEvmKey: !!evmPrivateKey },
+      'Bridge phase: using stub (missing signerPrivateKey or evmPrivateKey)',
+    );
+  }
+
+  // ── Fund phase ──────────────────────────────────────────────
+  // Full EVM execution requires evmPrivateKey. Falls back to stub when absent.
+  let fundDeps: { chargeService: CoinbaseChargeService; creditPoolService: CreditPoolService } | undefined;
+  if (evmPrivateKey) {
+    const evmExecutor = new EvmPaymentExecutor({
+      privateKey: evmPrivateKey,
+      chainId: config.evmChainId,
+    });
+    const coinbaseChargeService = new CoinbaseChargeService(orClient, {
+      dryRun: config.dryRun,
+      evmPaymentExecutor: evmExecutor,
+      evmChainId: config.evmChainId,
+    });
+    fundDeps = { chargeService: coinbaseChargeService, creditPoolService };
+    logger.info('Fund phase: using real CoinbaseChargeService + EvmPaymentExecutor');
+  } else {
+    logger.info('Fund phase: using stub (missing evmPrivateKey)');
+  }
+
+  // ── Provision phase ─────────────────────────────────────────
+  // Always uses real services — all deps are already constructed.
+  const provisionDeps = {
+    keyManagerService,
+    distributionService,
+    strategyService,
+  };
+  logger.info('Provision phase: using real services (KeyManager, Distribution, Strategy)');
+
   const phaseHandlers = createPhaseHandlerMap({
     claim: {
       bagsClient,
@@ -101,6 +154,9 @@ async function main() {
       resolveHolders: (strategy) =>
         heliusClient.getTokenHolders(strategy.distributionToken),
     },
+    bridge: bridgeDeps,
+    fund: fundDeps,
+    provision: provisionDeps,
   });
   const stateMachine = new StateMachine({
     auditService,
@@ -150,6 +206,10 @@ async function main() {
       dryRun: config.dryRun,
       claimSignerConfigured: !!config.signerPrivateKey,
       swapSignerConfigured: !!config.signerPrivateKey,
+      evmPrivateKeyConfigured: !!evmPrivateKey,
+      bridgeReal: !!bridgeDeps,
+      fundReal: !!fundDeps,
+      provisionReal: true,
     },
     'CreditBrain server started',
   );
