@@ -1,0 +1,50 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+      - 'milestone/**'
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  verify:
+    name: Verify
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            backend/package-lock.json
+            frontend/package-lock.json
+
+      # --- Backend ---
+      - name: Install backend dependencies
+        run: cd backend && npm ci
+
+      - name: Backend type check
+        run: cd backend && npx tsc --noEmit
+
+      - name: Backend tests
+        run: cd backend && npx vitest run
+
+      - name: Backend security audit
+        run: cd backend && npm audit --audit-level=critical || echo "::warning::npm audit found issues — see Security Audit Notes in README"
+
+      # --- Frontend ---
+      - name: Install frontend dependencies
+        run: cd frontend && npm ci --legacy-peer-deps
+
+      - name: Frontend type check
+        run: cd frontend && npx tsc -b
+
+      - name: Frontend build
+        run: cd frontend && npx vite build

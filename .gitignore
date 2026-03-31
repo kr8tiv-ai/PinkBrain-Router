@@ -21,6 +21,7 @@ out/
 *.db
 *.sqlite
 *.sqlite3
+data/
 
 # IDE
 .vscode/
@@ -39,15 +40,25 @@ logs/
 *.log
 npm-debug.log*
 
-# Testing
+# Testing & Coverage
 coverage/
+*.tsbuildinfo
 
-# Planning (local only)
-.planning/
-
-# Temporary
-tmp/
-temp/
+# Scratch/temp/audit files
+.bg-shell/
+_*.js
+_*.mjs
+_*.ts
+check-*.js
+fix_*.js
+run-*.js
+run-*.sh
+tmp-*.js
+push.bat
+*.bat
+*-coverage.txt
+coverage-*.txt
+ut-coverage.txt
 
 # ── GSD baseline (auto-generated) ──
 .gsd

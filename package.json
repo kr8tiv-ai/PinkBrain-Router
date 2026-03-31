@@ -1,26 +1,15 @@
 {
+  "name": "pinkbrain-router",
+  "private": true,
   "scripts": {
     "build": "cd frontend && npm run build",
+    "test": "cd backend && npx vitest run",
+    "typecheck": "cd backend && npx tsc --noEmit",
     "dev:frontend": "cd frontend && npm run dev",
+    "dev:backend": "cd backend && npm run dev",
     "docker:start": "docker compose up --build -d",
     "docker:stop": "docker compose down",
     "docker:logs": "docker compose logs -f",
     "docker:ps": "docker compose ps"
-  },
-  "devDependencies": {
-    "@types/node": "^25.5.0",
-    "@vitest/coverage-v8": "^4.1.2",
-    "typescript": "^6.0.2"
-  },
-  "dependencies": {
-    "@circle-fin/adapter-solana": "^1.5.1",
-    "@circle-fin/adapter-viem-v2": "^1.7.0",
-    "@circle-fin/bridge-kit": "^1.7.0",
-    "@fastify/helmet": "^13.0.2",
-    "axios": "1.14.0",
-    "pino": "^10.0.0",
-    "pino-pretty": "^13.0.0",
-    "recharts": "^3.8.1",
-    "zod": "^4.3.6"
   }
 }

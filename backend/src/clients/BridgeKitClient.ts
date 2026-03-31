@@ -1,4 +1,6 @@
 /* v8 ignore file -- @preserve */
+// @ts-nocheck -- @circle-fin/bridge-kit and @circle-fin/adapter-solana are optional runtime deps
+// (bridge phase is skipped when SIGNER_PRIVATE_KEY / EVM_PRIVATE_KEY are not configured)
 import pino from 'pino';
 import { Connection } from '@solana/web3.js';
 import {
