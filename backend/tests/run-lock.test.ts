@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { RunLock } from '../src/engine/RunLock.js';
+import type { DatabaseConnection } from '../src/services/Database.js';
 
 vi.mock('pino', () => ({
   default: vi.fn(() => ({
@@ -16,11 +17,64 @@ vi.mock('pino', () => ({
   })),
 }));
 
+/**
+ * Creates a mock DatabaseConnection that simulates the run_locks table
+ * using an in-memory Set, matching the INSERT OR IGNORE / DELETE semantics.
+ */
+function createMockDb(): DatabaseConnection {
+  const locks = new Set<string>();
+
+  const makeStatement = (sql: string) => ({
+    run: vi.fn((...args: unknown[]) => {
+      if (sql.startsWith('INSERT OR IGNORE')) {
+        const strategyId = args[0] as string;
+        if (locks.has(strategyId)) {
+          return { changes: 0 };
+        }
+        locks.add(strategyId);
+        return { changes: 1 };
+      }
+      if (sql === 'DELETE FROM run_locks WHERE strategy_id = ?') {
+        const strategyId = args[0] as string;
+        const had = locks.has(strategyId);
+        locks.delete(strategyId);
+        return { changes: had ? 1 : 0 };
+      }
+      if (sql === 'DELETE FROM run_locks') {
+        const size = locks.size;
+        locks.clear();
+        return { changes: size };
+      }
+      // cleanStaleLocks — no-op in tests (no real timestamps)
+      if (sql.includes("datetime('now'")) {
+        return { changes: 0 };
+      }
+      return { changes: 0 };
+    }),
+    get: vi.fn((...args: unknown[]) => {
+      if (sql.startsWith('SELECT 1')) {
+        const strategyId = args[0] as string;
+        return locks.has(strategyId) ? { '1': 1 } : undefined;
+      }
+      return undefined;
+    }),
+    all: vi.fn().mockReturnValue([]),
+  });
+
+  return {
+    prepare: vi.fn((sql: string) => makeStatement(sql)),
+    exec: vi.fn(),
+    pragma: vi.fn(),
+    transaction: vi.fn(<T>(fn: () => T): T => fn()) as <T>(fn: () => T) => T,
+    close: vi.fn(),
+  } as unknown as DatabaseConnection;
+}
+
 describe('RunLock', () => {
   let lock: RunLock;
 
   beforeEach(() => {
-    lock = new RunLock();
+    lock = new RunLock(createMockDb());
   });
 
   it('acquire returns true on first call for a strategy', () => {

@@ -10,10 +10,11 @@ import { CreditPoolService } from './services/CreditPoolService.js';
 import { UsageTrackingService } from './services/UsageTrackingService.js';
 import { OpenRouterClient } from './clients/OpenRouterClient.js';
 import { BagsClient } from './clients/BagsClient.js';
+import { BagsSdkAdapter } from './clients/BagsSdkAdapter.js';
 import { HeliusClient } from './clients/HeliusClient.js';
 import { DistributionService } from './services/DistributionService.js';
 import { createSignAndSendClaim } from './engine/signAndSendClaim.js';
-import { createSignAndSendSwap } from './engine/signAndSendSwap.js';
+import { createSignAndSendSwap, type JitoBundleConfig } from './engine/signAndSendSwap.js';
 import { ExecutionPolicy } from './engine/ExecutionPolicy.js';
 import { StateMachine } from './engine/StateMachine.js';
 import { RunLock } from './engine/RunLock.js';
@@ -52,8 +53,8 @@ async function main() {
   // Execution policy with DB persistence
   const executionPolicy = new ExecutionPolicy(config, dbConn);
 
-  // Engine
-  const runLock = new RunLock();
+  // Engine — DB-backed run lock (survives restarts, auto-reaps stale locks)
+  const runLock = new RunLock(dbConn);
 
   // Helius client for holder resolution
   const heliusClient = new HeliusClient({
@@ -73,17 +74,41 @@ async function main() {
     ? Keypair.fromSecretKey(bs58.decode(config.signerPrivateKey))
     : null;
 
-  const bagsClient = new BagsClient({
-    apiKey: config.bagsApiKey,
-    baseUrl: config.bagsApiBaseUrl,
-  });
+  // ── Bags client ──────────────────────────────────────────────
+  // Use SDK-backed adapter when Connection is available (preferred),
+  // fall back to raw HTTP client otherwise.
+  const bagsClient = connection
+    ? new BagsSdkAdapter(
+        { apiKey: config.bagsApiKey, baseUrl: config.bagsApiBaseUrl },
+        connection,
+      )
+    : new BagsClient({
+        apiKey: config.bagsApiKey,
+        baseUrl: config.bagsApiBaseUrl,
+      });
+  logger.info(
+    { adapter: connection ? 'BagsSdkAdapter' : 'BagsClient' },
+    'Bags client initialized',
+  );
+
+  // ── Jito MEV protection config ─────────────────────────────
+  const jitoConfig: JitoBundleConfig | undefined = config.useJitoBundles
+    ? { enabled: true, tipLamports: config.jitoTipLamports }
+    : undefined;
+
+  if (jitoConfig) {
+    logger.info(
+      { tipLamports: jitoConfig.tipLamports },
+      'Jito bundle protection ENABLED for swap/claim transactions',
+    );
+  }
 
   const signAndSendClaim = claimKeypair
-    ? createSignAndSendClaim(connection, claimKeypair)
+    ? createSignAndSendClaim(connection, claimKeypair, jitoConfig)
     : () => Promise.reject(new Error('No signer configured — set SIGNER_PRIVATE_KEY for live claiming'));
 
   const signAndSendSwap = claimKeypair
-    ? createSignAndSendSwap(connection, claimKeypair)
+    ? createSignAndSendSwap(connection, claimKeypair, jitoConfig)
     : () => Promise.reject(new Error('No signer configured — set SIGNER_PRIVATE_KEY for live swapping'));
 
   // ── Bridge phase ─────────────────────────────────────────────

@@ -45,6 +45,7 @@ import { RunLock } from '../../src/engine/RunLock.js';
 import { WRAPPED_SOL_MINT } from '../../src/constants/addresses.js';
 import type { Config } from '../../src/config/index.js';
 import type { CreditRun } from '../../src/types/index.js';
+import type { DatabaseConnection } from '../../src/services/Database.js';
 
 // ─── Constants ──────────────────────────────────────────────────
 
@@ -318,9 +319,49 @@ const stateMachine = new StateMachine({
   phaseHandlers,
 });
 
-// ─── Build real RunLock ─────────────────────────────────────────
+// ─── Build real RunLock with mock DB ────────────────────────────
 
-const runLock = new RunLock();
+function createMockLockDb(): DatabaseConnection {
+  const locks = new Set<string>();
+  const makeStmt = (sql: string) => ({
+    run: vi.fn((...args: unknown[]) => {
+      if (sql.startsWith('INSERT OR IGNORE')) {
+        const id = args[0] as string;
+        if (locks.has(id)) return { changes: 0 };
+        locks.add(id);
+        return { changes: 1 };
+      }
+      if (sql === 'DELETE FROM run_locks WHERE strategy_id = ?') {
+        const id = args[0] as string;
+        const had = locks.has(id);
+        locks.delete(id);
+        return { changes: had ? 1 : 0 };
+      }
+      if (sql === 'DELETE FROM run_locks') {
+        const sz = locks.size;
+        locks.clear();
+        return { changes: sz };
+      }
+      return { changes: 0 };
+    }),
+    get: vi.fn((...args: unknown[]) => {
+      if (sql.startsWith('SELECT 1')) {
+        return locks.has(args[0] as string) ? { '1': 1 } : undefined;
+      }
+      return undefined;
+    }),
+    all: vi.fn().mockReturnValue([]),
+  });
+  return {
+    prepare: vi.fn((sql: string) => makeStmt(sql)),
+    exec: vi.fn(),
+    pragma: vi.fn(),
+    transaction: vi.fn(<T>(fn: () => T): T => fn()) as <T>(fn: () => T) => T,
+    close: vi.fn(),
+  } as unknown as DatabaseConnection;
+}
+
+const runLock = new RunLock(createMockLockDb());
 
 // ─── Test ───────────────────────────────────────────────────────
 

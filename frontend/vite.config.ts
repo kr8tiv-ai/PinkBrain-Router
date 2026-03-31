@@ -1,14 +1,21 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
-import path from 'path';
+import { fileURLToPath, URL } from 'node:url';
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  define: {
+    // Polyfill for @solana/web3.js which uses Buffer in browser
+    'global': 'globalThis',
+  },
   resolve: {
     alias: {
-      '@': path.resolve(import.meta.dirname, './src'),
+      '@': fileURLToPath(new URL('./src', import.meta.url)),
     },
+  },
+  optimizeDeps: {
+    include: ['buffer'],
   },
   server: {
     proxy: {

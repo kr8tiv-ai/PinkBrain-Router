@@ -1,8 +1,9 @@
-import { useState, type FormEvent } from 'react';
+import { useState, useEffect, type FormEvent } from 'react';
 import { useNavigate } from 'react-router';
 import { useCreateStrategy } from '@/api';
 import type { FeeSourceType, DistributionMode, KeyLimitReset, CreateStrategyPayload } from '@/api/types';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
+import { useWallet } from '@/hooks/useWallet';
 
 const SOURCES: FeeSourceType[] = ['CLAIMABLE_POSITIONS', 'PARTNER_FEES'];
 const DISTRIBUTIONS: DistributionMode[] = [
@@ -27,6 +28,7 @@ export default function StrategyCreate() {
   useDocumentTitle('New Strategy — PinkBrain Router');
   const navigate = useNavigate();
   const createStrategy = useCreateStrategy();
+  const { publicKey, connected } = useWallet();
 
   const [form, setForm] = useState<CreateStrategyPayload>({
     ownerWallet: '',
@@ -47,6 +49,13 @@ export default function StrategyCreate() {
 
   const [exclusionText, setExclusionText] = useState('');
   const [errors, setErrors] = useState<FormErrors>({});
+
+  // Auto-fill owner wallet from connected Solana wallet
+  useEffect(() => {
+    if (connected && publicKey && !form.ownerWallet) {
+      setForm((prev) => ({ ...prev, ownerWallet: publicKey.toBase58() }));
+    }
+  }, [connected, publicKey, form.ownerWallet]);
 
   function validate(): FormErrors {
     const errs: FormErrors = {};

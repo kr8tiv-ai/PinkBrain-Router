@@ -1,5 +1,6 @@
 import { NavLink, useLocation } from 'react-router';
 import { useAuth } from '@/hooks/useAuth';
+import { useWallet } from '@/hooks/useWallet';
 import { truncateId } from '@/lib/format';
 
 const NAV_ITEMS = [
@@ -19,6 +20,7 @@ export function Sidebar({
   onClose: () => void;
 }) {
   const { token, setToken } = useAuth();
+  const { publicKey, connected } = useWallet();
   const location = useLocation();
 
   return (
@@ -57,8 +59,23 @@ export function Sidebar({
           </button>
         </div>
 
-        {/* Token display */}
-        <div className="border-b border-gray-800 px-5 py-3">
+        {/* Connection status */}
+        <div className="border-b border-gray-800 px-5 py-3 space-y-2">
+          {/* Wallet status */}
+          {connected && publicKey ? (
+            <div className="flex items-center gap-2">
+              <span className="inline-block h-2 w-2 rounded-full bg-neon-green" />
+              <span className="font-mono text-xs text-neon-green">
+                {publicKey.toBase58().slice(0, 4)}...{publicKey.toBase58().slice(-4)}
+              </span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2">
+              <span className="inline-block h-2 w-2 rounded-full bg-gray-600" />
+              <span className="text-xs text-text-muted">No wallet</span>
+            </div>
+          )}
+          {/* Token status */}
           {token ? (
             <div className="flex items-center justify-between">
               <span className="font-mono text-xs text-text-muted">
