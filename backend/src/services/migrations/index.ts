@@ -7,6 +7,7 @@ import { migration as migration006 } from './006_usage_snapshots.js';
 import { migration as migration007 } from './007_drop_openrouter_key.js';
 import { migration as migration008 } from './008_user_keys_prd_columns.js';
 import { migration as migration009 } from './009_daily_run_counts.js';
+import { migration_010_run_locks } from './010_run_locks.js';
 import type { DatabaseConnection } from '../Database.js';
 
 export interface Migration {
@@ -25,4 +26,5 @@ export const migrations: Migration[] = [
   migration007,
   migration008,
   migration009,
+  migration_010_run_locks,
 ];

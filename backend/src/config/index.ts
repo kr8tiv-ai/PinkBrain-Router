@@ -60,8 +60,11 @@ const configSchema = z.object({
   bagsAgentJwt: z.string().optional(),
   bagsAgentWalletAddress: z.string().optional(),
   
+  useJitoBundles: z.coerce.boolean().default(false),
+  jitoTipLamports: z.coerce.number().min(0).default(15_000_000),
+
   databasePath: z.string().default('./data/creditbrain.db'),
-  
+
   corsOrigins: z.string().default(''),
   
   logLevel: z.enum(['debug', 'info', 'warn', 'error']).default('info'),
@@ -125,6 +128,8 @@ export function loadConfig(): Config {
     bagsAgentUsername: parseEnvValue(process.env.BAGS_AGENT_USERNAME),
     bagsAgentJwt: parseEnvValue(process.env.BAGS_AGENT_JWT),
     bagsAgentWalletAddress: parseEnvValue(process.env.BAGS_AGENT_WALLET_ADDRESS),
+    useJitoBundles: process.env.USE_JITO_BUNDLES,
+    jitoTipLamports: process.env.JITO_TIP_LAMPORTS,
     databasePath: process.env.DATABASE_PATH,
     corsOrigins: process.env.CORS_ORIGINS ?? '',
     logLevel: process.env.LOG_LEVEL,

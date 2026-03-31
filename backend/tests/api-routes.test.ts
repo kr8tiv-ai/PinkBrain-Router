@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import Fastify from 'fastify';
 import { registerAllRoutes } from '../src/routes/index.js';
+import { resetAuthFailureTracker } from '../src/plugins/auth.js';
 
 vi.mock('pino', () => ({
   default: vi.fn(() => ({
@@ -20,6 +21,11 @@ vi.mock('pino', () => ({
 const TEST_TOKEN = 'test-bearer-token-12345';
 const AUTH_HEADER = { authorization: `Bearer ${TEST_TOKEN}` };
 
+// Reset brute-force tracker between tests so 401 tests don't poison later suites
+beforeEach(() => {
+  resetAuthFailureTracker();
+});
+
 // ─── Helpers ────────────────────────────────────────────────────
 
 function createMockDb() {
@@ -38,7 +44,7 @@ function createMockDb() {
 
 const mockStrategy = {
   strategyId: 'strat-0001',
-  ownerWallet: 'WalletA',
+  ownerWallet: '7xKpPqREhiP1B6d3wTgs8MTwbLj5GhXFsJAiGbrZkQbL',
   source: 'CLAIMABLE_POSITIONS' as const,
   distributionToken: '',
   swapConfig: { slippageBps: 50, maxPriceImpactBps: 300 },
@@ -159,7 +165,7 @@ function createMockOpenRouterClient() {
 const mockUserKey = {
   keyId: 'uk-0001',
   strategyId: 'strat-0001',
-  holderWallet: 'WalletA',
+  holderWallet: '7xKpPqREhiP1B6d3wTgs8MTwbLj5GhXFsJAiGbrZkQbL',
   openrouterKeyHash: 'key-hash-001',
   spendingLimitUsd: 10,
   currentUsageUsd: 2.5,
@@ -277,13 +283,13 @@ describe('Strategy Routes', () => {
       method: 'POST',
       url: '/api/strategies',
       headers: AUTH_HEADER,
-      payload: { ownerWallet: 'NewWallet' },
+      payload: { ownerWallet: '9xKpPqREhiP1B6d3wTgs8MTwbLj5GhXFsJAiGbrZkNew' },
     });
     expect(res.statusCode).toBe(200);
     expect(res.json().strategyId).toBe('strat-new-001');
-    expect(res.json().ownerWallet).toBe('NewWallet');
+    expect(res.json().ownerWallet).toBe('9xKpPqREhiP1B6d3wTgs8MTwbLj5GhXFsJAiGbrZkNew');
     expect(deps.strategyService.create).toHaveBeenCalledWith(
-      expect.objectContaining({ ownerWallet: 'NewWallet' }),
+      expect.objectContaining({ ownerWallet: '9xKpPqREhiP1B6d3wTgs8MTwbLj5GhXFsJAiGbrZkNew' }),
     );
     await app.close();
   });
@@ -603,7 +609,7 @@ describe('Key Routes', () => {
     const keyResponse = res.json()[0];
     expect(keyResponse).not.toHaveProperty('openrouterKey');
     expect(keyResponse).not.toHaveProperty('openrouter_key');
-    expect(keyResponse.holderWallet).toBe('WalletA');
+    expect(keyResponse.holderWallet).toBe('7xKpPqREhiP1B6d3wTgs8MTwbLj5GhXFsJAiGbrZkQbL');
     expect(deps.keyManagerService.getKeysByStrategy).toHaveBeenCalledWith('strat-0001');
     await app.close();
   });
@@ -811,13 +817,13 @@ describe('Wallet Key Routes', () => {
     const { app, deps } = await createApp();
     const res = await app.inject({
       method: 'GET',
-      url: '/api/keys/wallet/WalletA',
+      url: '/api/keys/wallet/7xKpPqREhiP1B6d3wTgs8MTwbLj5GhXFsJAiGbrZkQbL',
       headers: AUTH_HEADER,
     });
     expect(res.statusCode).toBe(200);
     expect(res.json().keyId).toBe('uk-0001');
-    expect(res.json().holderWallet).toBe('WalletA');
-    expect(deps.keyManagerService.getActiveKeyByWallet).toHaveBeenCalledWith('WalletA');
+    expect(res.json().holderWallet).toBe('7xKpPqREhiP1B6d3wTgs8MTwbLj5GhXFsJAiGbrZkQbL');
+    expect(deps.keyManagerService.getActiveKeyByWallet).toHaveBeenCalledWith('7xKpPqREhiP1B6d3wTgs8MTwbLj5GhXFsJAiGbrZkQbL');
     await app.close();
   });
 
@@ -829,7 +835,7 @@ describe('Wallet Key Routes', () => {
 
     const res = await app.inject({
       method: 'GET',
-      url: '/api/keys/wallet/unknown-wallet',
+      url: '/api/keys/wallet/9xKpPqREhiP1B6d3wTgs8MTwbLj5GhXFsJAiGbrZkNew',
       headers: AUTH_HEADER,
     });
     expect(res.statusCode).toBe(404);
@@ -841,13 +847,13 @@ describe('Wallet Key Routes', () => {
     const { app, deps } = await createApp();
     const res = await app.inject({
       method: 'DELETE',
-      url: '/api/keys/wallet/WalletA',
+      url: '/api/keys/wallet/7xKpPqREhiP1B6d3wTgs8MTwbLj5GhXFsJAiGbrZkQbL',
       headers: AUTH_HEADER,
     });
     expect(res.statusCode).toBe(200);
     expect(res.json().revoked).toBe(true);
-    expect(res.json().wallet).toBe('WalletA');
-    expect(deps.keyManagerService.getActiveKeyByWallet).toHaveBeenCalledWith('WalletA');
+    expect(res.json().wallet).toBe('7xKpPqREhiP1B6d3wTgs8MTwbLj5GhXFsJAiGbrZkQbL');
+    expect(deps.keyManagerService.getActiveKeyByWallet).toHaveBeenCalledWith('7xKpPqREhiP1B6d3wTgs8MTwbLj5GhXFsJAiGbrZkQbL');
     expect(deps.keyManagerService.revokeKey).toHaveBeenCalledWith('uk-0001');
     await app.close();
   });
@@ -860,7 +866,7 @@ describe('Wallet Key Routes', () => {
 
     const res = await app.inject({
       method: 'DELETE',
-      url: '/api/keys/wallet/unknown-wallet',
+      url: '/api/keys/wallet/9xKpPqREhiP1B6d3wTgs8MTwbLj5GhXFsJAiGbrZkNew',
       headers: AUTH_HEADER,
     });
     expect(res.statusCode).toBe(404);
@@ -879,7 +885,7 @@ describe('Wallet Key Routes', () => {
 
     const res = await app.inject({
       method: 'POST',
-      url: '/api/keys/wallet/WalletA/rotate',
+      url: '/api/keys/wallet/7xKpPqREhiP1B6d3wTgs8MTwbLj5GhXFsJAiGbrZkQbL/rotate',
       headers: AUTH_HEADER,
     });
     expect(res.statusCode).toBe(200);
@@ -902,7 +908,7 @@ describe('Wallet Key Routes', () => {
 
     const res = await app.inject({
       method: 'POST',
-      url: '/api/keys/wallet/WalletA/rotate',
+      url: '/api/keys/wallet/7xKpPqREhiP1B6d3wTgs8MTwbLj5GhXFsJAiGbrZkQbL/rotate',
       headers: AUTH_HEADER,
     });
     expect(res.statusCode).toBe(200);
@@ -920,7 +926,7 @@ describe('Wallet Key Routes', () => {
 
     const res = await app.inject({
       method: 'POST',
-      url: '/api/keys/wallet/unknown-wallet/rotate',
+      url: '/api/keys/wallet/9xKpPqREhiP1B6d3wTgs8MTwbLj5GhXFsJAiGbrZkNew/rotate',
       headers: AUTH_HEADER,
     });
     expect(res.statusCode).toBe(404);
@@ -935,7 +941,7 @@ describe('Wallet Key Routes', () => {
 
     const res = await app.inject({
       method: 'POST',
-      url: '/api/keys/wallet/WalletA/rotate',
+      url: '/api/keys/wallet/7xKpPqREhiP1B6d3wTgs8MTwbLj5GhXFsJAiGbrZkQbL/rotate',
       headers: AUTH_HEADER,
     });
     expect(res.statusCode).toBe(500);
@@ -947,13 +953,13 @@ describe('Wallet Key Routes', () => {
     const { app, deps } = await createApp();
     const res = await app.inject({
       method: 'GET',
-      url: '/api/keys/wallet/WalletA/usage',
+      url: '/api/keys/wallet/7xKpPqREhiP1B6d3wTgs8MTwbLj5GhXFsJAiGbrZkQbL/usage',
       headers: AUTH_HEADER,
     });
     expect(res.statusCode).toBe(200);
     expect(res.json()).toHaveLength(1);
     expect(res.json()[0].key_hash).toBe('key-hash-001');
-    expect(deps.keyManagerService.getActiveKeyByWallet).toHaveBeenCalledWith('WalletA');
+    expect(deps.keyManagerService.getActiveKeyByWallet).toHaveBeenCalledWith('7xKpPqREhiP1B6d3wTgs8MTwbLj5GhXFsJAiGbrZkQbL');
     expect(deps.usageTrackingService.getKeyUsage).toHaveBeenCalledWith('key-hash-001');
     await app.close();
   });
@@ -966,14 +972,14 @@ describe('Wallet Key Routes', () => {
 
     const res = await app.inject({
       method: 'GET',
-      url: '/api/keys/wallet/unknown-wallet/usage',
+      url: '/api/keys/wallet/9xKpPqREhiP1B6d3wTgs8MTwbLj5GhXFsJAiGbrZkNew/usage',
       headers: AUTH_HEADER,
     });
     expect(res.statusCode).toBe(404);
     await app.close();
   });
 
-  it('GET /keys/wallet with empty string returns 404', async () => {
+  it('GET /keys/wallet with empty string returns 400 or 404', async () => {
     const app = Fastify({ logger: false });
     const deps = createAllDeps();
     deps.keyManagerService.getActiveKeyByWallet = vi.fn().mockReturnValue(null);
@@ -984,7 +990,8 @@ describe('Wallet Key Routes', () => {
       url: '/api/keys/wallet/',
       headers: AUTH_HEADER,
     });
-    expect(res.statusCode).toBe(404);
+    // Empty wallet param either hits no route (404) or fails schema validation (400)
+    expect([400, 404]).toContain(res.statusCode);
     await app.close();
   });
 });

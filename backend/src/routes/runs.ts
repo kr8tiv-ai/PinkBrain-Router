@@ -3,6 +3,7 @@ import type { RunService } from '../services/RunService.js';
 import type { StateMachine } from '../engine/StateMachine.js';
 import type { RunLock } from '../engine/RunLock.js';
 import type { CreditRun } from '../types/index.js';
+import { idParam, strategyIdParam } from '../plugins/validation.js';
 
 export interface RunRouteDeps {
   runService: RunService;
@@ -65,6 +66,7 @@ export async function runRoutes(
 
   // GET /runs/:id — get a run by ID
   app.get('/runs/:id', {
+    schema: { params: idParam },
     handler: async (request, reply) => {
       const { id } = request.params as { id: string };
       const run = deps.runService.getById(id);
@@ -77,6 +79,7 @@ export async function runRoutes(
 
   // GET /runs/strategy/:strategyId — list runs for a strategy
   app.get('/runs/strategy/:strategyId', {
+    schema: { params: strategyIdParam },
     handler: async (request) => {
       const { strategyId } = request.params as { strategyId: string };
       const runs = deps.runService.getByStrategyId(strategyId);
@@ -86,6 +89,7 @@ export async function runRoutes(
 
   // POST /runs/:id/resume — resume a failed run
   app.post('/runs/:id/resume', {
+    schema: { params: idParam },
     handler: async (request, reply) => {
       const { id } = request.params as { id: string };
       const run = deps.runService.getById(id);

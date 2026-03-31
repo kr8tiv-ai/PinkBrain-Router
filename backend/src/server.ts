@@ -2,7 +2,6 @@ import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import rateLimit from '@fastify/rate-limit';
 import sensible from '@fastify/sensible';
-import helmet from '@fastify/helmet';
 import { registerAllRoutes, healthRoutes } from './routes/index.js';
 import type { AllRouteDeps } from './routes/index.js';
 import type { HealthDeps } from './routes/health.js';
@@ -33,7 +32,7 @@ export async function buildApp(deps: ServerDeps) {
     .filter(Boolean);
 
   const corsConfig: { origin: boolean | string[] } = {
-    origin: corsOriginsList.length > 0 ? corsOriginsList : true,
+    origin: corsOriginsList.length > 0 ? corsOriginsList : false,
   };
 
   await app.register(cors, corsConfig);
@@ -47,8 +46,22 @@ export async function buildApp(deps: ServerDeps) {
   // Sensible — standardized error responses
   await app.register(sensible);
 
-  // Helmet — security headers (X-Content-Type-Options, X-Frame-Options, etc.)
-  await app.register(helmet);
+  // Security headers — equivalent to helmet defaults, no external dep
+  app.addHook('onSend', async (_request, reply) => {
+    reply.header('X-Content-Type-Options', 'nosniff');
+    reply.header('X-Frame-Options', 'DENY');
+    reply.header('X-XSS-Protection', '0');
+    reply.header('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+    reply.header('Referrer-Policy', 'no-referrer');
+    reply.header('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+    reply.header('X-DNS-Prefetch-Control', 'off');
+    reply.header('X-Download-Options', 'noopen');
+    reply.header('X-Permitted-Cross-Domain-Policies', 'none');
+    reply.header(
+      'Content-Security-Policy',
+      "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://public-api-v2.bags.fm https://openrouter.ai; font-src 'self'; object-src 'none'; frame-ancestors 'none'",
+    );
+  });
 
   // Request logging — attach timing and ID
   app.addHook('onRequest', async (request) => {

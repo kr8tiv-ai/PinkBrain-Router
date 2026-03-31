@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import type { StrategyService } from '../services/StrategyService.js';
 import type { Strategy } from '../types/index.js';
+import { idParam } from '../plugins/validation.js';
 
 export interface StrategyRouteDeps {
   strategyService: StrategyService;
@@ -25,7 +26,7 @@ export async function strategyRoutes(
         type: 'object',
         required: ['ownerWallet'],
         properties: {
-          ownerWallet: { type: 'string' },
+          ownerWallet: { type: 'string', pattern: '^[1-9A-HJ-NP-Za-km-z]{32,44}$' },
           source: { type: 'string', enum: ['CLAIMABLE_POSITIONS', 'PARTNER_FEES'] },
           distributionToken: { type: 'string' },
           distribution: {
@@ -68,6 +69,7 @@ export async function strategyRoutes(
 
   // GET /strategies/:id — get a strategy by ID
   app.get('/strategies/:id', {
+    schema: { params: idParam },
     handler: async (request, reply) => {
       const { id } = request.params as { id: string };
       const strategy = deps.strategyService.getById(id);
@@ -81,6 +83,7 @@ export async function strategyRoutes(
   // PATCH /strategies/:id — update a strategy
   app.patch('/strategies/:id', {
     schema: {
+      params: idParam,
       body: {
         type: 'object',
         properties: {
@@ -127,6 +130,7 @@ export async function strategyRoutes(
 
   // POST /strategies/:id/enable — activate a strategy
   app.post('/strategies/:id/enable', {
+    schema: { params: idParam },
     handler: async (request, reply) => {
       const { id } = request.params as { id: string };
       const strategy = deps.strategyService.update(id, { status: 'ACTIVE' });
@@ -139,6 +143,7 @@ export async function strategyRoutes(
 
   // POST /strategies/:id/disable — pause a strategy
   app.post('/strategies/:id/disable', {
+    schema: { params: idParam },
     handler: async (request, reply) => {
       const { id } = request.params as { id: string };
       const strategy = deps.strategyService.update(id, { status: 'PAUSED' });
@@ -151,6 +156,7 @@ export async function strategyRoutes(
 
   // DELETE /strategies/:id — delete a strategy
   app.delete('/strategies/:id', {
+    schema: { params: idParam },
     handler: async (request, reply) => {
       const { id } = request.params as { id: string };
       const deleted = deps.strategyService.delete(id);

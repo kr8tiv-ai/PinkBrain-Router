@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import type { DatabaseConnection } from '../services/Database.js';
 import type { OpenRouterClient } from '../clients/OpenRouterClient.js';
+import type { BagsClient } from '../clients/BagsClient.js';
 import pino from 'pino';
 
 const logger = pino({ name: 'health' });
@@ -8,6 +9,7 @@ const logger = pino({ name: 'health' });
 export interface HealthDeps {
   db: DatabaseConnection;
   openRouterClient: OpenRouterClient;
+  bagsClient?: BagsClient;
 }
 
 export async function healthRoutes(
@@ -57,13 +59,32 @@ export async function healthRoutes(
         openrouter = false;
       }
 
-      const allHealthy = database && openrouter;
+      // Bags API check with 3s timeout (optional — skipped if client not injected)
+      let bags: boolean;
+      if (deps.bagsClient) {
+        try {
+          await Promise.race([
+            deps.bagsClient.getRateLimitStatus(),
+            new Promise<never>((_, reject) =>
+              setTimeout(() => reject(new Error('Bags health check timed out (3s)')), 3000),
+            ),
+          ]);
+          bags = true;
+        } catch (err) {
+          logger.warn({ err }, 'Health check: Bags API unreachable');
+          bags = false;
+        }
+      } else {
+        bags = true; // Not configured, don't penalize health
+      }
+
+      const allHealthy = database && openrouter && bags;
 
       const response = {
         status: allHealthy ? 'ok' : 'degraded',
         timestamp: new Date().toISOString(),
         uptime: process.uptime(),
-        dependencies: { openrouter, database },
+        dependencies: { openrouter, database, bags },
         responseTimeMs: Date.now() - startTime,
       };
 

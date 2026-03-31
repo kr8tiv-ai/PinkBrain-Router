@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import Fastify from 'fastify';
 import { buildApp } from '../src/server.js';
-import { authHookFactory } from '../src/plugins/auth.js';
+import { authHookFactory, resetAuthFailureTracker } from '../src/plugins/auth.js';
 import type { DatabaseConnection } from '../src/services/Database.js';
 import type { OpenRouterClient } from '../src/clients/OpenRouterClient.js';
 
@@ -23,6 +23,11 @@ vi.mock('pino', () => ({
     })),
   })),
 }));
+
+// Reset brute-force tracker between tests so 401 tests don't poison later suites
+beforeEach(() => {
+  resetAuthFailureTracker();
+});
 
 // ─── Test fixtures ──────────────────────────────────────────────
 
@@ -276,7 +281,8 @@ describe('GET /health/ready', () => {
     expect(body.status).toBe('ok');
     expect(body).toHaveProperty('timestamp');
     expect(body).toHaveProperty('uptime');
-    expect(body.dependencies).toEqual({ openrouter: true, database: true });
+    expect(body.dependencies.openrouter).toBe(true);
+    expect(body.dependencies.database).toBe(true);
     expect(body).toHaveProperty('responseTimeMs');
 
     await app.close();
@@ -580,7 +586,7 @@ describe('Request logging', () => {
 // ─── CORS configuration tests ───────────────────────────────────
 
 describe('CORS configuration', () => {
-  it('allows all origins by default (corsOrigins not set)', async () => {
+  it('denies all origins by default (corsOrigins not set)', async () => {
     const deps = createDeps();
     const app = await buildApp(deps);
 
@@ -593,11 +599,8 @@ describe('CORS configuration', () => {
       },
     });
 
-    // With origin: true, the Vary header should be set to Origin
-    // and the response should indicate CORS is allowed
-    expect(response.headers['vary']?.toLowerCase()).toContain('origin');
-    // origin: true echoes the requesting origin back
-    expect(response.headers['access-control-allow-origin']).toBe('https://evil-site.com');
+    // With origin: false (deny-all default), no CORS header echoed
+    expect(response.headers['access-control-allow-origin']).toBeUndefined();
 
     await app.close();
   });
@@ -641,7 +644,7 @@ describe('CORS configuration', () => {
     await app.close();
   });
 
-  it('handles empty corsOrigins string as allow-all', async () => {
+  it('handles empty corsOrigins string as deny-all', async () => {
     const deps = createDeps();
     deps.corsOrigins = '';
     const app = await buildApp(deps);
@@ -655,8 +658,8 @@ describe('CORS configuration', () => {
       },
     });
 
-    // Empty string should still allow all origins (dev default)
-    expect(response.headers['access-control-allow-origin']).toBe('https://any-origin.com');
+    // Empty string = deny-all (production safe default)
+    expect(response.headers['access-control-allow-origin']).toBeUndefined();
 
     await app.close();
   });
@@ -748,7 +751,7 @@ describe('Error detail leakage prevention', () => {
     const mockKey = {
       keyId: 'or-key-123',
       strategyId: 'test-strategy',
-      holderWallet: 'WalletA',
+      holderWallet: '7xKpPqREhiP1B6d3wTgs8MTwbLj5GhXFsJAiGbrZkQbL',
       openrouterKeyHash: 'abc123',
       spendingLimitUsd: 10,
       currentUsageUsd: 0,
@@ -765,7 +768,7 @@ describe('Error detail leakage prevention', () => {
 
     const response = await app.inject({
       method: 'POST',
-      url: '/api/keys/wallet/WalletA/rotate',
+      url: '/api/keys/wallet/7xKpPqREhiP1B6d3wTgs8MTwbLj5GhXFsJAiGbrZkQbL/rotate',
       headers: { authorization: `Bearer ${TEST_TOKEN}` },
     });
 

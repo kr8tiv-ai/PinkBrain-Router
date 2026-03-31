@@ -2,6 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import type { KeyManagerService } from '../services/KeyManagerService.js';
 import type { OpenRouterClient, KeyData } from '../clients/OpenRouterClient.js';
 import type { UsageTrackingService } from '../services/UsageTrackingService.js';
+import { hashParam, strategyIdParam } from '../plugins/validation.js';
 
 export interface KeyRouteDeps {
   keyManagerService: KeyManagerService;
@@ -31,6 +32,15 @@ function stripKeySecret(key: KeyData): Omit<KeyData, never> & Record<string, unk
   };
 }
 
+// Solana pubkey: base58, 32-44 chars
+const WALLET_PARAM_SCHEMA = {
+  type: 'object' as const,
+  required: ['wallet'],
+  properties: {
+    wallet: { type: 'string' as const, pattern: '^[1-9A-HJ-NP-Za-km-z]{32,44}$' },
+  },
+};
+
 export async function keyRoutes(
   app: FastifyInstance,
   deps: KeyRouteDeps,
@@ -47,6 +57,7 @@ export async function keyRoutes(
 
   // GET /keys/wallet/:wallet — get active key by wallet
   app.get('/keys/wallet/:wallet', {
+    schema: { params: WALLET_PARAM_SCHEMA },
     handler: async (request, reply) => {
       const { wallet } = request.params as { wallet: string };
       const key = deps.keyManagerService.getActiveKeyByWallet(wallet);
@@ -59,6 +70,7 @@ export async function keyRoutes(
 
   // GET /keys/wallet/:wallet/usage — get usage snapshots for wallet's active key
   app.get('/keys/wallet/:wallet/usage', {
+    schema: { params: WALLET_PARAM_SCHEMA },
     handler: async (request, reply) => {
       const { wallet } = request.params as { wallet: string };
       const key = deps.keyManagerService.getActiveKeyByWallet(wallet);
@@ -72,6 +84,7 @@ export async function keyRoutes(
 
   // POST /keys/wallet/:wallet/rotate — rotate active key for wallet
   app.post('/keys/wallet/:wallet/rotate', {
+    schema: { params: WALLET_PARAM_SCHEMA },
     handler: async (request, reply) => {
       const { wallet } = request.params as { wallet: string };
       const oldKey = deps.keyManagerService.getActiveKeyByWallet(wallet);
@@ -107,6 +120,7 @@ export async function keyRoutes(
 
   // DELETE /keys/wallet/:wallet — revoke active key by wallet
   app.delete('/keys/wallet/:wallet', {
+    schema: { params: WALLET_PARAM_SCHEMA },
     handler: async (request, reply) => {
       const { wallet } = request.params as { wallet: string };
       const key = deps.keyManagerService.getActiveKeyByWallet(wallet);
@@ -125,6 +139,7 @@ export async function keyRoutes(
 
   // GET /keys/strategy/:strategyId — get keys for a strategy
   app.get('/keys/strategy/:strategyId', {
+    schema: { params: strategyIdParam },
     handler: async (request) => {
       const { strategyId } = request.params as { strategyId: string };
       const keys = deps.keyManagerService.getKeysByStrategy(strategyId);
@@ -136,6 +151,7 @@ export async function keyRoutes(
 
   // GET /keys/:hash — get a single key by hash
   app.get('/keys/:hash', {
+    schema: { params: hashParam },
     handler: async (request, reply) => {
       const { hash } = request.params as { hash: string };
       try {
@@ -154,6 +170,7 @@ export async function keyRoutes(
   // DELETE /keys/:hash — revoke a key
   app.delete('/keys/:hash', {
     schema: {
+      params: hashParam,
       body: {
         type: 'object',
         required: ['keyId'],

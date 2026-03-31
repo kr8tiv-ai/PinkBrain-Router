@@ -83,7 +83,7 @@ const mockBagsClient = {
       dammPoolClaimableLamportsUserShare: 0,
       dammPoolAddress: 'damm-address',
       claimableDisplayAmount: 10,
-      user: 'e2e-wallet',
+      user: '5xKpPqREhiP1B6d3wTgs8MTwbLj5GhXFsJAiGbrZkE2E',
       claimerIndex: 0,
       userBps: 10000,
       customFeeVault: '',
@@ -137,7 +137,7 @@ const mockSignAndSendSwap = vi.fn().mockResolvedValue('mock-swap-sig');
 
 const mockStrategy = {
   strategyId: STRATEGY_ID,
-  ownerWallet: 'e2e-wallet',
+  ownerWallet: '5xKpPqREhiP1B6d3wTgs8MTwbLj5GhXFsJAiGbrZkE2E',
   source: 'CLAIMABLE_POSITIONS' as const,
   distributionToken: 'mint-abc',
   swapConfig: { slippageBps: 50, maxPriceImpactBps: 300 },
@@ -475,14 +475,14 @@ describe('E2E: Full pipeline integration (7 phases)', () => {
       url: '/api/strategies',
       headers: AUTH_HEADER,
       payload: {
-        ownerWallet: 'e2e-wallet',
+        ownerWallet: '5xKpPqREhiP1B6d3wTgs8MTwbLj5GhXFsJAiGbrZkE2E',
         distributionToken: 'mint-abc',
       },
     });
 
     expect(res.statusCode).toBe(200);
     const body = res.json();
-    expect(body.ownerWallet).toBe('e2e-wallet');
+    expect(body.ownerWallet).toBe('5xKpPqREhiP1B6d3wTgs8MTwbLj5GhXFsJAiGbrZkE2E');
     expect(body.strategyId).toBe(STRATEGY_ID);
   });
 
@@ -566,7 +566,7 @@ describe('E2E: Full pipeline integration (7 phases)', () => {
 
   it('verify mocks were called with correct data flow', () => {
     // BagsClient called to get claimable positions
-    expect(mockBagsClient.getClaimablePositions).toHaveBeenCalledWith('e2e-wallet');
+    expect(mockBagsClient.getClaimablePositions).toHaveBeenCalledWith('5xKpPqREhiP1B6d3wTgs8MTwbLj5GhXFsJAiGbrZkE2E');
 
     // In dry-run mode, claim phase returns early before fetching claim transactions.
     // Only verify positions were queried.

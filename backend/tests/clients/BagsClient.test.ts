@@ -198,7 +198,10 @@ describe('BagsClient', () => {
   describe('getClaimTransactions', () => {
     it('returns claim transactions for a position', async () => {
       const mockTx = [
-        { transaction: 'base64-tx-1', computeUnits: 150000 },
+        {
+          tx: 'base58-encoded-tx-1',
+          blockhash: { blockhash: 'hash-abc', lastValidBlockHeight: 1000 },
+        },
       ];
       mockPost.mockResolvedValue({ data: mockTx, headers: {} });
 
@@ -210,7 +213,7 @@ describe('BagsClient', () => {
       const result = await client.getClaimTransactions('feeClaimer123', mockPosition);
 
       expect(result).toHaveLength(1);
-      expect(result[0].transaction).toBe('base64-tx-1');
+      expect(result[0].tx).toBe('base58-encoded-tx-1');
       expect(mockPost).toHaveBeenCalledWith(
         '/fees/claim/transactions',
         expect.objectContaining({

@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/status-in%20development-yellow?style=flat-square" />
+  <img src="https://img.shields.io/badge/status-Complete-brightgreen?style=flat-square" />
   <img src="https://img.shields.io/badge/Bags%20Hackathon-Q1%202026%20%E2%80%A2%20%244M%20Pool-ff69b4?style=flat-square" />
   <img src="https://img.shields.io/badge/platform-Bags.fm%20App%20Store-blueviolet?style=flat-square" />
   <img src="https://img.shields.io/badge/chain-Solana-9945FF?style=flat-square&logo=solana&logoColor=white" />
@@ -42,7 +42,7 @@ PinkBrain Router is the second application in the PinkBrain family:
 | App | What It Does | Status |
 |-----|-------------|--------|
 | [**PinkBrain LP**](https://github.com/kr8tiv-ai/PinkBrain-lp) | Fees &rarr; Permanently locked Meteora liquidity | Phase 3 Complete |
-| **PinkBrain Router** *(this repo)* | Fees &rarr; OpenRouter API credits + per-user keys | In Development |
+| **PinkBrain Router** *(this repo)* | Fees &rarr; OpenRouter API credits + per-user keys | Complete |
 
 Both apps share the same input (Bags.fm platform fees) but serve different purposes &mdash; LP locks liquidity, Router distributes AI access.
 
@@ -53,23 +53,27 @@ Both apps share the same input (Bags.fm platform fees) but serve different purpo
 ### The Fee-to-Credits Compounding Loop
 
 ```
-                        CREDITBRAIN ENGINE
-   ┌──────────────────────────────────────────────────┐
-   │                                                  │
-   │   1. CLAIM ── Bags.fm fees hit SOL threshold     │
-   │       |                                          │
-   │   2. SWAP ─── SOL --> USDC via Bags trade API    │
-   │       |                                          │
-   │   3. ALLOCATE ─ Calculate per-user splits        │
-   │       |                                          │
-   │   4. PROVISION ─ Create/top-up OpenRouter keys   │
-   │       |                                          │
-   │   5. REPEAT ── Next cycle auto-tops limits       │
-   │                                                  │
-   └──────────────────────────────────────────────────┘
+                        PINKBRAIN ENGINE
+   ┌──────────────────────────────────────────────────────┐
+   │                                                      │
+   │   1. CLAIM ── Bags.fm fees hit SOL threshold         │
+   │       |                                              │
+   │   2. SWAP ─── SOL → USDC via Bags trade API          │
+   │       |                                              │
+   │   3. BRIDGE ── USDC Solana → Base via CCTP           │
+   │       |                                              │
+   │   4. FUND ──── Purchase OpenRouter credits via EVM   │
+   │       |                                              │
+   │   5. ALLOCATE ─ Calculate per-user splits            │
+   │       |                                              │
+   │   6. PROVISION ─ Create/top-up OpenRouter keys       │
+   │       |                                              │
+   │   7. REPEAT ── Next cycle auto-tops limits           │
+   │                                                      │
+   └──────────────────────────────────────────────────────┘
 ```
 
-The entire pipeline is a **4-phase state machine** with checkpointing &mdash; if any phase fails, it resumes from the last successful checkpoint. Every phase transition is logged in an immutable audit trail.
+The entire pipeline is a **7-phase state machine** with checkpointing &mdash; if any phase fails, it resumes from the last successful checkpoint. Every phase transition is logged in an immutable audit trail.
 
 ### Distribution Modes
 
@@ -129,13 +133,16 @@ The entire pipeline is a **4-phase state machine** with checkpointing &mdash; if
 
 - **Automated fee claiming** from Bags.fm fee vaults with configurable SOL thresholds
 - **SOL-to-USDC conversion** via Bags trade API (ecosystem-compliant swaps)
+- **CCTP cross-chain bridge** Solana USDC → Base USDC via Circle Bridge Kit
+- **OpenRouter credit purchasing** via Coinbase Charge with EVM execution
 - **Per-user API key provisioning** via OpenRouter Management API
 - **300+ AI model access** through a single OpenAI-compatible endpoint
 - **Usage tracking** with daily, weekly, and monthly granularity per key
-- **Flexible distribution** &mdash; owner-only, top-N holders, equal split, weighted, or custom
-- **Safety controls** &mdash; dry-run mode, kill switch, daily run caps, spending limits
-- **Checkpointed state machine** &mdash; resumes from last successful phase on failure
-- **Immutable audit trail** &mdash; every operation logged with tx signatures
+- **Flexible distribution** — owner-only, top-N holders, equal split, weighted, or custom
+- **Safety controls** — dry-run mode, kill switch, daily run caps, spending limits, per-route rate limiting
+- **Checkpointed state machine** — resumes from last successful phase on failure
+- **Immutable audit trail** — every operation logged with tx signatures
+- **Docker deployment** — multi-stage Dockerfiles with health-check-gated startup
 
 ---
 
@@ -143,12 +150,14 @@ The entire pipeline is a **4-phase state machine** with checkpointing &mdash; if
 
 | Layer | Technology |
 |-------|-----------|
-| **Backend** | Node.js 20+, TypeScript, Fastify, SQLite (PostgreSQL-ready) |
-| **Blockchain** | Solana, Bags SDK, Helius RPC + DAS API |
-| **AI Gateway** | OpenRouter Management API, `@openrouter/sdk` |
-| **Frontend** | React 19, Vite, Tailwind CSS, TanStack React Query |
+| **Backend** | Node.js 22, TypeScript 6, Fastify, SQLite (PostgreSQL-ready) |
+| **Blockchain** | Solana (web3.js v1), Bags SDK, Helius RPC + DAS API, Circle Bridge Kit |
+| **AI Gateway** | OpenRouter Management API, Coinbase Charge |
+| **Cross-chain** | CCTP (Solana → Base) via viem |
+| **Frontend** | React 19, Vite 8, Tailwind CSS, TanStack React Query |
 | **Scheduling** | node-cron with configurable intervals |
-| **Validation** | Zod schemas for config + API payloads |
+| **Validation** | Zod v4 schemas for config + API payloads |
+| **Deployment** | Docker (multi-stage), GitHub Actions CI |
 
 ---
 
@@ -195,7 +204,7 @@ npm run dev
 | `DRY_RUN` | No | Set `true` to simulate without executing (default: false) |
 | `EXECUTION_KILL_SWITCH` | No | Emergency pause all operations (default: false) |
 
-See [`.env.example`](./backend/.env.example) for the full list.
+See [`.env.example`](./.env.example) for the full list.
 
 ---
 
@@ -250,10 +259,10 @@ All endpoints require `Authorization: Bearer <API_AUTH_TOKEN>`.
 
 | Phase | Focus | Status |
 |-------|-------|--------|
-| **Phase 1** | Foundation &mdash; SDK integrations, DB schema, client wrappers | In Progress |
-| **Phase 2** | Core Engine &mdash; 4-phase state machine with checkpointing | Planned |
-| **Phase 3** | REST API + Dashboard &mdash; Strategy management, key viewer, usage charts | Planned |
-| **Phase 4** | Hardening &mdash; Security review, key rotation, PostgreSQL migration, launch | Planned |
+| **Phase 1** | Foundation — SDK integrations, DB schema, client wrappers | ✅ Complete |
+| **Phase 2** | Core Engine — 7-phase state machine, CCTP bridge, EVM funding | ✅ Complete |
+| **Phase 3** | REST API + Dashboard — Strategy management, key viewer, usage charts | ✅ Complete |
+| **Phase 4** | Hardening — Security review, CI/CD, Docker deployment | ✅ Complete |
 
 ---
 
@@ -278,7 +287,7 @@ All endpoints require `Authorization: Bearer <API_AUTH_TOKEN>`.
 
 ## Contributing
 
-This project is in active development for the Bags.fm App Store hackathon. Contributions, ideas, and feedback are welcome.
+This project was built for the Bags.fm App Store hackathon. Contributions, ideas, and feedback are welcome.
 
 ```bash
 # Create a feature branch

@@ -11,6 +11,12 @@ import type {
   SwapTransaction,
   ClaimTransaction,
 } from '../types/index.js';
+import {
+  parseClaimablePositions,
+  parseClaimTransactions,
+  parseTradeQuote,
+  parseSwapTransaction,
+} from './bags-schemas.js';
 
 const logger = pino({ name: 'BagsClient' });
 
@@ -70,11 +76,12 @@ export class BagsClient implements BagsAdapter {
       return res;
     });
 
+    const positions = parseClaimablePositions(response.data);
     logger.info(
-      { wallet, count: response.data.length },
+      { wallet, count: positions.length },
       'Retrieved claimable positions',
     );
-    return response.data;
+    return positions;
   }
 
   async getClaimTransactions(
@@ -112,7 +119,7 @@ export class BagsClient implements BagsAdapter {
       return res;
     });
 
-    return response.data;
+    return parseClaimTransactions(response.data);
   }
 
   async getTradeQuote(
@@ -143,15 +150,16 @@ export class BagsClient implements BagsAdapter {
       return res;
     });
 
+    const quote = parseTradeQuote(response.data);
     logger.info(
       {
-        inAmount: response.data.inAmount,
-        outAmount: response.data.outAmount,
-        priceImpactPct: response.data.priceImpactPct,
+        inAmount: quote.inAmount,
+        outAmount: quote.outAmount,
+        priceImpactPct: quote.priceImpactPct,
       },
       'Received trade quote',
     );
-    return response.data;
+    return quote;
   }
 
   async createSwapTransaction(
@@ -174,14 +182,15 @@ export class BagsClient implements BagsAdapter {
       return res;
     });
 
+    const swapTx = parseSwapTransaction(response.data);
     logger.info(
       {
         requestId: quoteResponse.requestId,
-        computeUnits: response.data.computeUnitLimit,
+        computeUnits: swapTx.computeUnitLimit,
       },
       'Swap transaction created',
     );
-    return response.data;
+    return swapTx;
   }
 
   async prepareSwap(
