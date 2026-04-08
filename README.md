@@ -1,148 +1,158 @@
-<p align="center">
-  <img src="https://img.shields.io/badge/PinkBrain-Router-ff69b4?style=for-the-badge&logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJ3aGl0ZSI+PHBhdGggZD0iTTEyIDJDNi40OCAyIDIgNi40OCAyIDEyczQuNDggMTAgMTAgMTAgMTAtNC40OCAxMC0xMFMxNy41MiAyIDEyIDJ6bS0xIDE3LjkzYy0zLjk1LS40OS03LTMuODUtNy03LjkzIDAtLjYyLjA4LTEuMjEuMjEtMS43OUw5IDEzdjFjMCAxLjEuOSAyIDIgMnYxLjkzem02LjktMi41NGMtLjI2LS44MS0xLTEuMzktMS45LTEuMzloLTFWMTNjMC0uNTUtLjQ1LTEtMS0xSDh2LTJoMmMuNTUgMCAxLS40NSAxLTFWN2gyYzEuMSAwIDItLjkgMi0ydi0uNDFjMi45MyAxLjE5IDUgNC4wNiA1IDcuNDEgMCAxLjY1LS41IDMuMTktMS4zNSA0LjQ5eiIvPjwvc3ZnPg==&logoColor=white" alt="PinkBrain Router" />
-</p>
-
-<h1 align="center">PinkBrain Router</h1>
-
-<p align="center">
-  <strong>Turn DeFi fees into AI superpowers.</strong><br/>
-  A <a href="https://bags.fm">Bags.fm</a> App Store engine that converts accrued platform fees into <a href="https://openrouter.ai">OpenRouter</a> API credits &mdash; giving token holders frictionless access to 300+ AI models.
-</p>
+```
+  ____  _       _    ____            _         ____             _            
+ |  _ \(_)_ __ | | _| __ ) _ __ __ _(_)_ __   |  _ \ ___  _   _| |_ ___ _ __ 
+ | |_) | | '_ \| |/ /  _ \| '__/ _` | | '_ \  | |_) / _ \| | | | __/ _ \ '__|
+ |  __/| | | | |   <| |_) | | | (_| | | | | | |  _ < (_) | |_| | ||  __/ |   
+ |_|   |_|_| |_|_|\_\____/|_|  \__,_|_|_| |_| |_| \_\___/ \__,_|\__\___|_|   
+```
 
 <p align="center">
-  <img src="https://img.shields.io/badge/status-Complete-brightgreen?style=flat-square" />
-  <img src="https://img.shields.io/badge/Bags%20Hackathon-Q1%202026%20%E2%80%A2%20%244M%20Pool-ff69b4?style=flat-square" />
-  <img src="https://img.shields.io/badge/platform-Bags.fm%20App%20Store-blueviolet?style=flat-square" />
-  <img src="https://img.shields.io/badge/chain-Solana-9945FF?style=flat-square&logo=solana&logoColor=white" />
-  <img src="https://img.shields.io/badge/AI%20gateway-OpenRouter-10A37F?style=flat-square" />
-  <img src="https://img.shields.io/badge/TypeScript-strict-3178C6?style=flat-square&logo=typescript&logoColor=white" />
-  <img src="https://img.shields.io/badge/license-MIT-green?style=flat-square" />
+  <strong>Turn DeFi fees into AI superpowers.</strong>
 </p>
+
+<p align="center">
+  <code>Solana</code> &middot; <code>TypeScript</code> &middot; <code>Fastify</code> &middot; <code>React 19</code> &middot; <code>Docker</code> &middot; <code>300+ AI Models</code>
+</p>
+
+---
+
+**Status:** Complete | **Chain:** Solana Mainnet | **AI Gateway:** OpenRouter | **License:** MIT
+**Org:** [kr8tiv-ai](https://github.com/kr8tiv-ai) | **Ecosystem:** [$BRAIN](https://pinkyandthebrain.fun) | **Platform:** [Bags.fm](https://bags.fm) App Store
 
 ---
 
 ## What is PinkBrain Router?
 
-Every token project on [Bags.fm](https://bags.fm) generates trading fees. Today those fees sit idle or are manually claimed. **PinkBrain Router** creates a fully automated pipeline that turns those idle DeFi fees into AI infrastructure for your community:
+Every token on [Bags.fm](https://bags.fm) generates trading fees. Most of those fees sit idle. **PinkBrain Router** changes that -- it pipes idle DeFi revenue directly into AI infrastructure, giving your community frictionless access to 300+ models through a single API key.
+
+No subscriptions. No credit cards. No juggling billing across providers.
+
+One key. Every model. Funded by fees your token already generates.
 
 ```
-Bags.fm fees accrue  -->  Claim fees  -->  Swap SOL to USDC  -->  Fund OpenRouter credit pool  -->  Provision per-user API keys
+  Bags.fm fees     SOL to USDC      Bridge to        Fund OpenRouter     Provision
+    accrue    -->    swap       -->    Base      -->    credit pool   -->  per-user keys
+                  (Jito MEV                           (Coinbase             (auto
+                  protected)                           Charge)            top-up)
 ```
 
-Every qualifying token holder gets their own **OpenRouter API key** with auto-topped spending limits &mdash; paid for by the trading fees the token already generates. No subscriptions. No credit cards. No fragmented billing across AI providers.
-
-One key. 300+ models. Claude, GPT-4, Gemini, Llama, Mistral, DeepSeek, and more.
-
----
-
-## The PinkBrain Ecosystem on Bags
-
-PinkBrain Router is the second application in the PinkBrain family:
-
-| App | What It Does | Status |
-|-----|-------------|--------|
-| [**PinkBrain LP**](https://github.com/kr8tiv-ai/PinkBrain-lp) | Fees &rarr; Permanently locked Meteora liquidity | Phase 3 Complete |
-| **PinkBrain Router** *(this repo)* | Fees &rarr; OpenRouter API credits + per-user keys | Complete |
-
-Both apps share the same input (Bags.fm platform fees) but serve different purposes &mdash; LP locks liquidity, Router distributes AI access.
-
----
-
-## How It Works
-
-### The Fee-to-Credits Compounding Loop
-
-```
-                        PINKBRAIN ENGINE
-   ┌──────────────────────────────────────────────────────┐
-   │                                                      │
-   │   1. CLAIM ── Bags.fm fees hit SOL threshold         │
-   │       |                                              │
-   │   2. SWAP ─── SOL → USDC via Bags trade API          │
-   │       |                                              │
-   │   3. BRIDGE ── USDC Solana → Base via CCTP           │
-   │       |                                              │
-   │   4. FUND ──── Purchase OpenRouter credits via EVM   │
-   │       |                                              │
-   │   5. ALLOCATE ─ Calculate per-user splits            │
-   │       |                                              │
-   │   6. PROVISION ─ Create/top-up OpenRouter keys       │
-   │       |                                              │
-   │   7. REPEAT ── Next cycle auto-tops limits           │
-   │                                                      │
-   └──────────────────────────────────────────────────────┘
-```
-
-The entire pipeline is a **7-phase state machine** with checkpointing &mdash; if any phase fails, it resumes from the last successful checkpoint. Every phase transition is logged in an immutable audit trail.
-
-### Distribution Modes
-
-| Mode | Description |
-|------|-------------|
-| **Owner Only** | All credits go to the token creator |
-| **Top N Holders** | Credits distributed to top N holders by balance |
-| **Equal Split** | Equal allocation across all qualifying holders |
-| **Weighted** | Proportional to token holdings |
-| **Custom List** | Manual wallet-to-allocation mapping |
+Part of the **$BRAIN** ecosystem on [pinkyandthebrain.fun](https://pinkyandthebrain.fun).
 
 ---
 
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                     PINKBRAIN ROUTER                        │
-│                                                             │
-│  ┌───────────────────────────────────────────────────────┐  │
-│  │                  REST API (Fastify)                    │  │
-│  │  /strategies  /runs  /keys  /usage  /pool  /health    │  │
-│  └─────────────────────┬─────────────────────────────────┘  │
-│                        │                                    │
-│     ┌──────────────────┼──────────────────┐                 │
-│     │                  │                  │                  │
-│  ┌──▼──────┐    ┌──────▼──────┐    ┌──────▼──────┐         │
-│  │Scheduler│    │   Engine    │    │Key Manager  │         │
-│  │(cron)   │    │(state mach.)│    │(OpenRouter) │         │
-│  └─────────┘    └─────────────┘    └─────────────┘         │
-│                                                             │
-│  ┌───────────────────────────────────────────────────────┐  │
-│  │              EXTERNAL INTEGRATIONS                     │  │
-│  │  Bags SDK  ·  Helius RPC/DAS  ·  OpenRouter  ·  SQLite│  │
-│  └───────────────────────────────────────────────────────┘  │
-│                                                             │
-│  ┌───────────────────────────────────────────────────────┐  │
-│  │              React Dashboard (Vite)                    │  │
-│  │  Strategies  ·  Key Manager  ·  Usage Stats  ·  Pool  │  │
-│  └───────────────────────────────────────────────────────┘  │
-└─────────────────────────────────────────────────────────────┘
-         |                  |                  |
-         v                  v                  v
-   ┌──────────┐     ┌──────────────┐    ┌──────────────┐
-   │ Solana   │     │  Bags.fm     │    │ OpenRouter   │
-   │ Mainnet  │     │  Platform    │    │ AI Gateway   │
-   │          │     │              │    │              │
-   │ Fee      │     │ Trade API    │    │ 300+ models  │
-   │ vaults   │     │ Fee vaults   │    │ Key mgmt     │
-   │ SPL      │     │ App Store    │    │ Usage track  │
-   └──────────┘     └──────────────┘    └──────────────┘
+ PINKBRAIN ROUTER
+ ================
+
+ ┌─────────────────────────────────────────────────────────────────────┐
+ │                                                                     │
+ │   ┌───────────────────────────────────────────────────────────┐     │
+ │   │                    REST API  (Fastify)                    │     │
+ │   │                                                           │     │
+ │   │   /strategies    /runs    /keys    /usage    /pool        │     │
+ │   │   /stats         /health                                  │     │
+ │   └──────────┬──────────────────┬──────────────┬──────────────┘     │
+ │              │                  │              │                     │
+ │   ┌──────────▼───┐   ┌─────────▼────┐  ┌──────▼──────────┐        │
+ │   │  Scheduler   │   │   Engine     │  │  Key Manager    │        │
+ │   │  (node-cron) │   │  (7-phase    │  │  (OpenRouter    │        │
+ │   │              │   │   state      │  │   Management    │        │
+ │   │  Configurable│   │   machine)   │  │   API)          │        │
+ │   │  intervals   │   │              │  │                 │        │
+ │   └──────────────┘   │  Checkpoint  │  │  Per-user keys  │        │
+ │                      │  + Resume    │  │  Auto top-up    │        │
+ │                      └──────────────┘  └─────────────────┘        │
+ │                                                                     │
+ │   ┌───────────────────────────────────────────────────────────┐     │
+ │   │               External Integrations                       │     │
+ │   │                                                           │     │
+ │   │   Bags SDK  ·  Helius RPC/DAS  ·  Circle CCTP Bridge     │     │
+ │   │   Coinbase Charge  ·  OpenRouter  ·  Jito Bundles        │     │
+ │   └───────────────────────────────────────────────────────────┘     │
+ │                                                                     │
+ │   ┌───────────────────────────────────────────────────────────┐     │
+ │   │                Dashboard  (React 19 + Vite)               │     │
+ │   │                                                           │     │
+ │   │   Strategies  ·  Runs  ·  Key Manager  ·  Usage Charts   │     │
+ │   │   Credit Pool  ·  Health  ·  Stats  ·  Wallet Connect    │     │
+ │   └───────────────────────────────────────────────────────────┘     │
+ │                                                                     │
+ │   ┌───────────────────────────────────────────────────────────┐     │
+ │   │                     Data Layer                            │     │
+ │   │   SQLite (10 migrations)  ·  Immutable audit trail        │     │
+ │   └───────────────────────────────────────────────────────────┘     │
+ └─────────────────────────────────────────────────────────────────────┘
+          |                    |                    |
+          v                    v                    v
+    ┌───────────┐       ┌────────────┐       ┌────────────┐
+    │  Solana   │       │  Bags.fm   │       │ OpenRouter │
+    │  Mainnet  │       │  Platform  │       │ AI Gateway │
+    │           │       │            │       │            │
+    │ Fee vaults│       │ Trade API  │       │ 300+ models│
+    │ SPL/SOL   │       │ App Store  │       │ Key mgmt   │
+    │ Jito MEV  │       │ Agent API  │       │ Usage API  │
+    └───────────┘       └────────────┘       └────────────┘
 ```
 
 ---
 
-## Key Features
+## The Engine: 7-Phase Pipeline
 
-- **Automated fee claiming** from Bags.fm fee vaults with configurable SOL thresholds
-- **SOL-to-USDC conversion** via Bags trade API (ecosystem-compliant swaps)
-- **CCTP cross-chain bridge** Solana USDC → Base USDC via Circle Bridge Kit
-- **OpenRouter credit purchasing** via Coinbase Charge with EVM execution
-- **Per-user API key provisioning** via OpenRouter Management API
-- **300+ AI model access** through a single OpenAI-compatible endpoint
-- **Usage tracking** with daily, weekly, and monthly granularity per key
-- **Flexible distribution** — owner-only, top-N holders, equal split, weighted, or custom
-- **Safety controls** — dry-run mode, kill switch, daily run caps, spending limits, per-route rate limiting
-- **Checkpointed state machine** — resumes from last successful phase on failure
-- **Immutable audit trail** — every operation logged with tx signatures
-- **Docker deployment** — multi-stage Dockerfiles with health-check-gated startup
+PinkBrain Router operates as a **checkpointed state machine**. If any phase fails, it resumes from the last successful checkpoint on the next cycle. Every phase transition is logged in an immutable audit trail.
+
+| Phase | Operation | Detail |
+|:-----:|-----------|--------|
+| **1** | **Claim** | Collect accrued Bags.fm fees once SOL threshold is met |
+| **2** | **Swap** | Convert SOL to USDC via Bags trade API with Jito MEV protection |
+| **3** | **Bridge** | Move USDC from Solana to Base via Circle CCTP |
+| **4** | **Fund** | Purchase OpenRouter credits via Coinbase Charge on EVM |
+| **5** | **Allocate** | Calculate per-user credit splits based on distribution mode |
+| **6** | **Provision** | Create or top-up OpenRouter API keys for each qualifying holder |
+| **7** | **Repeat** | Next scheduled cycle auto-tops all limits |
+
+---
+
+## Features
+
+**Fee Automation**
+- Automated claiming from Bags.fm fee vaults with configurable SOL thresholds
+- SOL-to-USDC conversion via ecosystem-compliant Bags trade API
+- Jito bundle submission for MEV-protected swaps (anti-sandwich)
+
+**Cross-Chain Bridge**
+- Circle CCTP bridge from Solana USDC to Base USDC
+- EVM execution via viem for OpenRouter credit purchases
+
+**AI Access**
+- 300+ model access: Claude, GPT-4, Gemini, Llama, Mistral, DeepSeek, and more
+- Per-user API key provisioning via OpenRouter Management API
+- Usage tracking with daily, weekly, and monthly granularity
+- Auto top-up spending limits on each engine cycle
+
+**Distribution Modes**
+
+| Mode | Description |
+|------|-------------|
+| Owner Only | All credits to the token creator |
+| Top N Holders | Credits to top N holders by balance |
+| Equal Split | Equal allocation across qualifying holders |
+| Weighted | Proportional to token holdings |
+| Custom List | Manual wallet-to-allocation mapping |
+
+**Safety & Reliability**
+- Dry-run mode for simulation without execution
+- Kill switch for emergency pause
+- Daily run caps and per-route rate limiting
+- Circuit breaker pattern on external calls
+- Checkpointed state machine with automatic resume
+- Immutable audit trail with transaction signatures
+
+**Deployment**
+- Multi-stage Docker builds with health-check-gated startup
+- Docker Compose orchestration (backend + frontend)
+- Persistent data volumes for SQLite
 
 ---
 
@@ -150,14 +160,17 @@ The entire pipeline is a **7-phase state machine** with checkpointing &mdash; if
 
 | Layer | Technology |
 |-------|-----------|
-| **Backend** | Node.js 22, TypeScript 6, Fastify, SQLite (PostgreSQL-ready) |
-| **Blockchain** | Solana (web3.js v1), Bags SDK, Helius RPC + DAS API, Circle Bridge Kit |
-| **AI Gateway** | OpenRouter Management API, Coinbase Charge |
-| **Cross-chain** | CCTP (Solana → Base) via viem |
-| **Frontend** | React 19, Vite 8, Tailwind CSS, TanStack React Query |
+| **Backend** | Node.js 22, TypeScript, Fastify, SQLite |
+| **Frontend** | React 19, Vite, Tailwind CSS, TanStack Query, Recharts |
+| **Wallet** | Solana Wallet Adapter (Phantom, Solflare, etc.) |
+| **Blockchain** | Solana (web3.js), Bags SDK, Helius RPC + DAS API |
+| **Cross-chain** | Circle CCTP (Solana to Base), viem |
+| **AI Gateway** | OpenRouter Management API |
+| **Payments** | Coinbase Charge (EVM) |
+| **MEV Protection** | Jito block engine bundle submission |
 | **Scheduling** | node-cron with configurable intervals |
-| **Validation** | Zod v4 schemas for config + API payloads |
-| **Deployment** | Docker (multi-stage), GitHub Actions CI |
+| **Validation** | Zod schemas for config + API payloads |
+| **Deployment** | Docker multi-stage, Docker Compose |
 
 ---
 
@@ -171,38 +184,61 @@ The entire pipeline is a **7-phase state machine** with checkpointing &mdash; if
 - An [OpenRouter](https://openrouter.ai) Management API key
 - A Solana wallet with signing authority over your fee vaults
 
-### Setup
+### Quick Start
 
 ```bash
-# Clone the repo
+# Clone
 git clone https://github.com/kr8tiv-ai/PinkBrain-Router.git
 cd PinkBrain-Router
 
-# Install backend dependencies
+# Backend
 cd backend
 npm install
-
-# Configure environment
 cp .env.example .env
-# Edit .env with your API keys and configuration
+# Fill in your API keys and signer credentials
+npm run dev
 
-# Run in development
+# Frontend (separate terminal)
+cd frontend
+npm install
 npm run dev
 ```
 
-### Environment Variables
+### Docker Deployment
+
+```bash
+# Copy and configure environment
+cp .env.example .env
+
+# Build and launch both services
+docker compose up --build -d
+
+# Verify health
+docker compose ps
+docker compose logs -f
+```
+
+The frontend starts on port **80** and waits for the backend health check on port **3001** before accepting traffic.
+
+---
+
+## Environment Variables
 
 | Variable | Required | Description |
-|----------|----------|-------------|
+|----------|:--------:|-------------|
 | `BAGS_API_KEY` | Yes | Bags.fm developer API key |
 | `HELIUS_API_KEY` | Yes | Helius RPC + DAS API key |
 | `OPENROUTER_MANAGEMENT_KEY` | Yes | OpenRouter Management API key |
-| `API_AUTH_TOKEN` | Yes | Bearer token for CreditBrain API routes |
-| `FEE_THRESHOLD_SOL` | No | Min SOL before claiming (default: 5) |
-| `DEFAULT_KEY_LIMIT_USD` | No | Per-user API key spending limit (default: $10) |
+| `API_AUTH_TOKEN` | Yes | Bearer token for PinkBrain API routes |
+| `SIGNER_PRIVATE_KEY` | Yes | Solana signer (base58 or JSON array) |
+| `EVM_PRIVATE_KEY` | Yes | EVM signer for CCTP bridge transactions |
+| `FEE_THRESHOLD_SOL` | No | Min SOL before claiming (default: `5`) |
+| `DEFAULT_KEY_LIMIT_USD` | No | Per-user spending limit (default: `$10`) |
 | `DISTRIBUTION_MODE` | No | `OWNER_ONLY` / `TOP_N_HOLDERS` / `EQUAL_SPLIT` / `WEIGHTED` / `CUSTOM_LIST` |
-| `DRY_RUN` | No | Set `true` to simulate without executing (default: false) |
-| `EXECUTION_KILL_SWITCH` | No | Emergency pause all operations (default: false) |
+| `CRON_EXPRESSION` | No | Engine schedule (default: `0 */6 * * *`) |
+| `MAX_DAILY_RUNS` | No | Daily run cap (default: `4`) |
+| `DRY_RUN` | No | Simulate without executing (default: `false`) |
+| `EXECUTION_KILL_SWITCH` | No | Emergency pause (default: `false`) |
 
 See [`.env.example`](./.env.example) for the full list.
 
@@ -214,91 +250,91 @@ All endpoints require `Authorization: Bearer <API_AUTH_TOKEN>`.
 
 ### Strategies
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/api/strategies` | List all strategies |
-| `POST` | `/api/strategies` | Create new strategy |
-| `GET` | `/api/strategies/:id` | Get strategy details |
-| `PATCH` | `/api/strategies/:id` | Update strategy config |
-| `POST` | `/api/strategies/:id/enable` | Enable strategy |
-| `POST` | `/api/strategies/:id/disable` | Disable strategy |
+```
+GET    /api/strategies          List all strategies
+POST   /api/strategies          Create new strategy
+GET    /api/strategies/:id      Get strategy details
+PATCH  /api/strategies/:id      Update strategy config
+POST   /api/strategies/:id/enable    Enable strategy
+POST   /api/strategies/:id/disable   Disable strategy
+```
 
 ### Runs
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/api/runs` | List runs (filterable by strategy) |
-| `POST` | `/api/runs` | Trigger manual run |
-| `GET` | `/api/runs/:id` | Get run details + phase log |
-| `POST` | `/api/runs/:id/resume` | Resume failed run from checkpoint |
+```
+GET    /api/runs                List runs (filterable by strategy)
+POST   /api/runs                Trigger manual run
+GET    /api/runs/:id            Get run details + phase log
+POST   /api/runs/:id/resume     Resume failed run from checkpoint
+```
 
 ### Keys
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/api/keys` | List all provisioned user keys |
-| `GET` | `/api/keys/:wallet` | Get key details for a wallet |
-| `POST` | `/api/keys/:wallet/rotate` | Rotate a user's API key |
-| `DELETE` | `/api/keys/:wallet` | Revoke and delete a user's key |
-| `GET` | `/api/keys/:wallet/usage` | Usage breakdown (daily/weekly/monthly) |
+```
+GET    /api/keys                List all provisioned user keys
+GET    /api/keys/:wallet        Get key details for a wallet
+POST   /api/keys/:wallet/rotate Rotate a user's API key
+DELETE /api/keys/:wallet        Revoke and delete a user's key
+GET    /api/keys/:wallet/usage  Usage breakdown (daily/weekly/monthly)
+```
 
 ### Credit Pool & Stats
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/api/pool` | Pool balance, total allocated, remaining |
-| `GET` | `/api/pool/history` | Funding + allocation history |
-| `GET` | `/api/stats` | Aggregate stats (SOL claimed, USD converted, keys provisioned) |
-| `GET` | `/api/health` | Dependency health check (Bags, Helius, OpenRouter, DB) |
+```
+GET    /api/pool                Pool balance, allocated, remaining
+GET    /api/pool/history        Funding + allocation history
+GET    /api/stats               Aggregate stats (SOL claimed, USD converted, keys provisioned)
+GET    /api/health              Dependency health check (Bags, Helius, OpenRouter, DB)
+```
 
-> Full request/response schemas are documented in [PRD.md](./PRD.md) sections 9&ndash;10.
+---
+
+## The PinkBrain Ecosystem
+
+PinkBrain Router is the second application in the **$BRAIN** family on Bags.fm:
+
+| App | Pipeline | Status |
+|-----|----------|--------|
+| [**PinkBrain LP**](https://github.com/kr8tiv-ai/PinkBrain-lp) | Fees --> Permanently locked Meteora liquidity | Complete |
+| **PinkBrain Router** *(this repo)* | Fees --> OpenRouter API credits + per-user keys | Complete |
+
+Both apps share the same input (Bags.fm platform fees) but serve different purposes. LP locks liquidity. Router distributes AI access.
 
 ---
 
 ## Roadmap
 
 | Phase | Focus | Status |
-|-------|-------|--------|
-| **Phase 1** | Foundation — SDK integrations, DB schema, client wrappers | ✅ Complete |
-| **Phase 2** | Core Engine — 7-phase state machine, CCTP bridge, EVM funding | ✅ Complete |
-| **Phase 3** | REST API + Dashboard — Strategy management, key viewer, usage charts | ✅ Complete |
-| **Phase 4** | Hardening — Security review, CI/CD, Docker deployment | ✅ Complete |
+|:-----:|-------|:------:|
+| 1 | Foundation -- SDK integrations, DB schema, client wrappers | Done |
+| 2 | Core Engine -- 7-phase state machine, CCTP bridge, EVM funding | Done |
+| 3 | REST API + Dashboard -- Strategy management, key viewer, usage charts | Done |
+| 4 | Hardening -- Security review, CI/CD, Docker deployment | Done |
 
 ---
 
-## Documentation
+## Links
 
-- [**PRD.md**](./PRD.md) &mdash; Full product requirements document (1,200+ lines covering architecture, data models, API specs, security, and more)
-
----
-
-## Quick Links
-
-| Resource | Link |
-|----------|------|
-| PinkBrain LP (sister app) | [github.com/kr8tiv-ai/PinkBrain-lp](https://github.com/kr8tiv-ai/PinkBrain-lp) |
-| Bags.fm Platform | [bags.fm](https://bags.fm) |
-| OpenRouter Docs | [openrouter.ai/docs](https://openrouter.ai/docs) |
-| OpenRouter Key Provisioning | [Provisioning API docs](https://openrouter.ai/docs/features/provisioning-api-keys) |
-| OpenRouter TypeScript SDK | [github.com/OpenRouterTeam/typescript-sdk](https://github.com/OpenRouterTeam/typescript-sdk) |
-| Helius | [helius.dev](https://helius.dev) |
+| | |
+|---|---|
+| **$BRAIN** | [pinkyandthebrain.fun](https://pinkyandthebrain.fun) |
+| **PinkBrain LP** | [github.com/kr8tiv-ai/PinkBrain-lp](https://github.com/kr8tiv-ai/PinkBrain-lp) |
+| **Bags.fm** | [bags.fm](https://bags.fm) |
+| **OpenRouter** | [openrouter.ai](https://openrouter.ai) |
+| **Helius** | [helius.dev](https://helius.dev) |
+| **Circle CCTP** | [circle.com/cross-chain-transfer-protocol](https://www.circle.com/cross-chain-transfer-protocol) |
 
 ---
 
 ## Contributing
 
-This project was built for the Bags.fm App Store hackathon. Contributions, ideas, and feedback are welcome.
-
 ```bash
-# Create a feature branch
 git checkout -b feature/your-feature
-
-# Make changes, then push
+# make changes
 git add .
 git commit -m "feat: your feature"
 git push -u origin feature/your-feature
-
-# Open a PR on GitHub
+# open a PR on GitHub
 ```
 
 ---
@@ -310,5 +346,6 @@ MIT
 ---
 
 <p align="center">
-  Built by <a href="https://github.com/kr8tiv-ai">kr8tiv.ai</a> for the <a href="https://bags.fm">Bags.fm</a> ecosystem
+  Built by <a href="https://github.com/kr8tiv-ai">kr8tiv.ai</a> for the <a href="https://bags.fm">Bags.fm</a> ecosystem<br/>
+  <sub>Fees in. Intelligence out. That's the <strong>$BRAIN</strong>.</sub>
 </p>
