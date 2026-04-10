@@ -125,6 +125,11 @@ PinkBrain Router operates as a **checkpointed state machine**. If any phase fail
 - Circle CCTP bridge from Solana USDC to Base USDC
 - EVM execution via viem for OpenRouter credit purchases
 
+**Service Layer**
+- **CoinbaseChargeService** -- creates Coinbase Commerce charges on Base, polls for completion, and funds the OpenRouter credit pool. Includes gas preflight checks, charge expiry buffering, and circuit-breaker protection.
+- **BagsAgentService** -- implements the Bags.fm 3-step Moltbook agent auth flow (init nonce, social verification, JWT login) and provisions dev API keys via `/agent/dev/keys/create`.
+- **UsageTrackingService** -- polls OpenRouter key usage on a configurable interval (default 15 min), stores daily/weekly/monthly snapshots in SQLite, and exposes usage breakdowns via `GET /api/keys/:wallet/usage`.
+
 **AI Access**
 - 300+ model access: Claude, GPT-4, Gemini, Llama, Mistral, DeepSeek, and more
 - Per-user API key provisioning via OpenRouter Management API
@@ -137,9 +142,9 @@ PinkBrain Router operates as a **checkpointed state machine**. If any phase fail
 |------|-------------|
 | Owner Only | All credits to the token creator |
 | Top N Holders | Credits to top N holders by balance |
-| Equal Split | Equal allocation across qualifying holders |
-| Weighted | Proportional to token holdings |
-| Custom List | Manual wallet-to-allocation mapping |
+| Equal Split | Equal allocation across qualifying holders *(planned)* |
+| Weighted | Proportional to token holdings *(planned)* |
+| Custom List | Manual wallet-to-allocation mapping *(planned)* |
 
 **Safety & Reliability**
 - Dry-run mode for simulation without execution
